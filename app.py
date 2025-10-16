@@ -1,15 +1,19 @@
+import uvicorn
 from dotenv import load_dotenv
 from src import create_app
-from flask_cors import CORS
 
+# Load environment variables
 load_dotenv()
 
-# Khởi tạo ứng dụng Flask
+# Create FastAPI application
 app = create_app()
 
-# Cấu hình CORS
-CORS(app)
-
-# Chạy ứng dụng ở chế độ debug và không dùng gunicorn
+# Run application
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )
