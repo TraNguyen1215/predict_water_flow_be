@@ -1,17 +1,14 @@
 import datetime
 import re
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from pathlib import Path
-import shutil
 from src.api import deps
 from src.core import security
-from src.core.config import settings
 
 router = APIRouter()
 
-@router.post("/register", status_code=201)
+@router.post("/dang-ky", status_code=201)
 async def register_nguoi_dung(
     ten_dang_nhap: str = Body(..., embed=True),
     mat_khau: str = Body(..., embed=True),
@@ -59,7 +56,7 @@ async def register_nguoi_dung(
 
 
 # đăng nhập người dùng
-@router.post("/dang-nhap")
+@router.post("/dang-nhap", status_code=200)
 async def dang_nhap_nguoi_dung(
     ten_dang_nhap: str = Body(..., embed=True),
     mat_khau: str = Body(..., embed=True),
