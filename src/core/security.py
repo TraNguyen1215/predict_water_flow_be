@@ -1,21 +1,41 @@
 from datetime import datetime, timedelta
-from typing import Optional
-from jose import JWTError
-import jwt
-from passlib.context import CryptContext
+from typing import Optional, Tuple
+from jose import jwt, JWTError
+import os
+import hashlib
+import binascii
+import hmac
 from .config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# PBKDF2 settings
+PBKDF2_ITERATIONS = 100_000
+SALT_SIZE = 16  # bytes
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against a hashed password."""
-    return pwd_context.verify(plain_password, hashed_password)
+def generate_salt() -> str:
+    """Return a new random salt as a hex string."""
+    return binascii.hexlify(os.urandom(SALT_SIZE)).decode()
 
 
-def get_password_hash(password: str) -> str:
-    """Hash a password."""
-    return pwd_context.hash(password)
+def hash_password(password: str, salt_hex: str) -> str:
+    """Hash a password with the provided salt (hex) and return hex digest."""
+    salt = binascii.unhexlify(salt_hex)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PBKDF2_ITERATIONS)
+    return binascii.hexlify(dk).decode()
+
+
+def get_password_hash_and_salt(password: str) -> Tuple[str, str]:
+    """Generate a salt and return (hash_hex, salt_hex)."""
+    salt = generate_salt()
+    hashed = hash_password(password, salt)
+    return hashed, salt
+
+
+def verify_password(plain_password: str, salt_hex: str, hashed_password_hex: str) -> bool:
+    """Verify a password using stored salt and hash (both hex strings)."""
+    computed = hash_password(plain_password, salt_hex)
+    # Use constant-time comparison
+    return hmac.compare_digest(computed, hashed_password_hex)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -25,7 +45,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt

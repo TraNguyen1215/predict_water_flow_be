@@ -1,7 +1,12 @@
 from fastapi import APIRouter
-from .endpoints import auth_router
+from .endpoints import nguoi_dung
 
-api_router = APIRouter()
+api_v1_router = APIRouter()
 
 # Include authentication routes
-api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
+
+api_v1_router.include_router(
+    nguoi_dung.router,
+    prefix="/nguoi-dung",
+    tags=["nguoi-dung"]
+)
