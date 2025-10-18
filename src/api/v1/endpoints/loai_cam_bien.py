@@ -25,7 +25,17 @@ async def get_loai_cam_bien(
     )
 
     loai_cam_bien_list = result.fetchall()
-    return {"data": [dict(row) for row in loai_cam_bien_list]}
+    return {
+        "data": [
+            {
+                "ma_loai_cam_bien": row.ma_loai_cam_bien,
+                "ten_loai_cam_bien": row.ten_loai_cam_bien,
+                "thoi_gian_tao": row.thoi_gian_tao,
+                "thoi_gian_cap_nhat": row.thoi_gian_cap_nhat,
+            }
+            for row in loai_cam_bien_list
+        ]
+    }
 
 
 # Lấy thông tin loại cảm biến theo mã
@@ -49,13 +59,17 @@ async def get_loai_cam_bien_theo_ma(
     if not loai_cam_bien:
         raise HTTPException(status_code=404, detail="Không tìm thấy loại cảm biến")
     
-    return {"data": dict(loai_cam_bien)}
+    return {
+        "ma_loai_cam_bien": loai_cam_bien.ma_loai_cam_bien,
+        "ten_loai_cam_bien": loai_cam_bien.ten_loai_cam_bien,
+        "thoi_gian_tao": loai_cam_bien.thoi_gian_tao,
+        "thoi_gian_cap_nhat": loai_cam_bien.thoi_gian_cap_nhat,
+    }
 
 # Thêm loại cảm biến mới
 @router.post("/", status_code=201)
 async def create_loai_cam_bien(
     ten_loai_cam_bien: str = Body(...),
-    mo_ta: str | None = Body(None),
     db: AsyncSession = Depends(deps.get_db_session),
 ):
     """
@@ -64,11 +78,10 @@ async def create_loai_cam_bien(
 
     await db.execute(
         text(
-            "INSERT INTO loai_cam_bien(ten_loai_cam_bien, mo_ta) VALUES(:ten_loai_cam_bien, :mo_ta)"
+            "INSERT INTO loai_cam_bien(ten_loai_cam_bien, thoi_gian_tao) VALUES(:ten_loai_cam_bien, NOW())"
         ),
         {
             "ten_loai_cam_bien": ten_loai_cam_bien,
-            "mo_ta": mo_ta,
         },
     )
 
@@ -80,8 +93,7 @@ async def create_loai_cam_bien(
 @router.put("/{ma_loai_cam_bien}", status_code=200)
 async def update_loai_cam_bien(
     ma_loai_cam_bien: int,
-    ten_loai_cam_bien: str = Body(...),
-    mo_ta: str | None = Body(None),
+    ten_loai_cam_bien: str = Body(None),
     db: AsyncSession = Depends(deps.get_db_session),
 ):
     """
@@ -99,18 +111,18 @@ async def update_loai_cam_bien(
     if not loai_cam_bien:
         raise HTTPException(status_code=404, detail="Không tìm thấy loại cảm biến")
 
+
     await db.execute(
         text(
             """
             UPDATE loai_cam_bien
             SET ten_loai_cam_bien = :ten_loai_cam_bien,
-                mo_ta = :mo_ta
+                thoi_gian_cap_nhat = NOW()
             WHERE ma_loai_cam_bien = :ma_loai_cam_bien
         """
         ),
         {
-            "ten_loai_cam_bien": ten_loai_cam_bien,
-            "mo_ta": mo_ta,
+            "ten_loai_cam_bien": ten_loai_cam_bien if ten_loai_cam_bien else loai_cam_bien.ten_loai_cam_bien,
             "ma_loai_cam_bien": ma_loai_cam_bien,
         },
     )
