@@ -58,7 +58,8 @@ async def update_avatar_nguoi_dung(
         text(
             """
             UPDATE nguoi_dung
-            SET avatar = :avatar
+            SET avatar = :avatar,
+                thoi_gian_cap_nhat = NOW()
             WHERE ma_nguoi_dung = :ma_nguoi_dung
         """
         ),
@@ -101,6 +102,8 @@ async def get_nguoi_dung(
         "dia_chi": nguoi_dung.dia_chi,
         "dang_nhap_lan_cuoi": nguoi_dung.dang_nhap_lan_cuoi,
         "avatar": nguoi_dung.avatar,
+        "trang_thai": nguoi_dung.trang_thai,
+        "thoi_gian_tao": nguoi_dung.thoi_gian_tao,
     }
     
 # Cập nhật thông tin người dùng
@@ -134,7 +137,8 @@ async def update_nguoi_dung(
             UPDATE nguoi_dung
             SET ho_ten = :ho_ten,
                 so_dien_thoai = :so_dien_thoai,
-                dia_chi = :dia_chi
+                dia_chi = :dia_chi,
+                thoi_gian_cap_nhat = NOW()
             WHERE ma_nguoi_dung = :ma_nguoi_dung
         """
         ),
