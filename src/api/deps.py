@@ -43,6 +43,6 @@ async def get_current_user(
     result = await db.execute(text("SELECT ma_nguoi_dung, ten_dang_nhap FROM nguoi_dung WHERE ma_nguoi_dung = :ma"), {"ma": str(user_uuid)})
     user = result.fetchone()
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Không tìm thấy người dùng")
 
     return user
