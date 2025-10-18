@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import nguoi_dung, auth, loai_cam_bien, cam_bien, may_bom
+from .endpoints import nguoi_dung, auth, loai_cam_bien, cam_bien, may_bom, nhat_ky_may_bom
 
 api_v1_router = APIRouter()
 
@@ -33,4 +33,10 @@ api_v1_router.include_router(
     may_bom.router,
     prefix="/may-bom",
     tags=["may-bom"]
+)
+
+api_v1_router.include_router(
+    nhat_ky_may_bom.router,
+    prefix="/nhat-ky-may-bom",
+    tags=["nhat-ky-may-bom"]
 )
