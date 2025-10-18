@@ -41,6 +41,9 @@ async def update_avatar_nguoi_dung(
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
+    if str(ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+        raise HTTPException(status_code=403, detail="Từ chối truy cập!")
+
     if nguoi_dung.avatar:
         old_path = UPLOAD_DIR / nguoi_dung.avatar
         if old_path.exists():
@@ -95,6 +98,9 @@ async def get_nguoi_dung(
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
+    if str(ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+        raise HTTPException(status_code=403, detail="Từ chối truy cập!")
+
     return {
         "ma_nguoi_dung": nguoi_dung.ma_nguoi_dung,
         "ho_ten": nguoi_dung.ho_ten,
@@ -130,6 +136,9 @@ async def update_nguoi_dung(
     nguoi_dung = result.fetchone()
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
+
+    if str(ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+        raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
     await db.execute(
         text(
@@ -177,6 +186,9 @@ async def delete_nguoi_dung(
     nguoi_dung = result.fetchone()
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
+
+    if str(ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+        raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
     if nguoi_dung.avatar:
         old_path = UPLOAD_DIR / nguoi_dung.avatar
