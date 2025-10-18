@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import nguoi_dung, auth, loai_cam_bien
+from .endpoints import nguoi_dung, auth, loai_cam_bien, cam_bien
 
 api_v1_router = APIRouter()
 
@@ -21,4 +21,10 @@ api_v1_router.include_router(
     loai_cam_bien.router,
     prefix="/loai-cam-bien",
     tags=["loai-cam-bien"]
+)
+
+api_v1_router.include_router(
+    cam_bien.router,
+    prefix="/cam-bien",
+    tags=["cam-bien"]
 )
