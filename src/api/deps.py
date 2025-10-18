@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.db import AsyncSessionLocal
 from src.core import security
 from sqlalchemy import text
+import uuid
 
 security_scheme = HTTPBearer()
 
@@ -33,7 +34,13 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
 
-    result = await db.execute(text("SELECT ma_nguoi_dung, ten_dang_nhap FROM nguoi_dung WHERE ma_nguoi_dung = :ma"), {"ma": int(user_id)})
+    # Validate UUID format
+    try:
+        user_uuid = uuid.UUID(str(user_id))
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
+
+    result = await db.execute(text("SELECT ma_nguoi_dung, ten_dang_nhap FROM nguoi_dung WHERE ma_nguoi_dung = :ma"), {"ma": str(user_uuid)})
     user = result.fetchone()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")

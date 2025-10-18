@@ -1,5 +1,6 @@
 import datetime
 import re
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -15,7 +16,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.put("/{ma_nguoi_dung}/anh-dai-dien", status_code=200)
 async def update_avatar_nguoi_dung(
-    ma_nguoi_dung: int,
+    ma_nguoi_dung: uuid.UUID,
     file: UploadFile = File(),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
@@ -74,7 +75,7 @@ async def update_avatar_nguoi_dung(
 # Lấy thông tin người dùng
 @router.get("/{ma_nguoi_dung}", status_code=200)
 async def get_nguoi_dung(
-    ma_nguoi_dung: int,
+    ma_nguoi_dung: uuid.UUID,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -105,7 +106,7 @@ async def get_nguoi_dung(
 # Cập nhật thông tin người dùng
 @router.put("/{ma_nguoi_dung}", status_code=200)
 async def update_nguoi_dung(
-    ma_nguoi_dung: int,
+    ma_nguoi_dung: uuid.UUID,
     ho_ten: str = Body(...),
     so_dien_thoai: str = Body(...),
     dia_chi: str = Body(...),
@@ -154,7 +155,7 @@ async def update_nguoi_dung(
 # Xoá người dùng
 @router.delete("/{ma_nguoi_dung}", status_code=200)
 async def delete_nguoi_dung(
-    ma_nguoi_dung: int,
+    ma_nguoi_dung: uuid.UUID,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):

@@ -1,5 +1,6 @@
 import datetime
 import re
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -39,9 +40,10 @@ async def register_nguoi_dung(
 
     await db.execute(
         text(
-            "INSERT INTO nguoi_dung(ten_dang_nhap, mat_khau_hash, salt, ho_ten, so_dien_thoai, thoi_gian_tao) VALUES(:ten_dang_nhap, :mat_khau_hash, :salt, :ho_ten, :so_dien_thoai, NOW())"
+            "INSERT INTO nguoi_dung(ma_nguoi_dung, ten_dang_nhap, mat_khau_hash, salt, ho_ten, so_dien_thoai, thoi_gian_tao) VALUES(:ma_nguoi_dung, :ten_dang_nhap, :mat_khau_hash, :salt, :ho_ten, :so_dien_thoai, NOW())"
         ),
         {
+            "ma_nguoi_dung": uuid.uuid4(),
             "ten_dang_nhap": ten_dang_nhap,
             "mat_khau_hash": mat_khau_hash,
             "salt": salt,
@@ -90,5 +92,7 @@ async def dang_nhap_nguoi_dung(
     )
     await db.commit()
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "details": "Đăng nhập thành công"}
+
+
 
