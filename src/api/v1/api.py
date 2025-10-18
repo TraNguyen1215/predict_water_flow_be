@@ -1,10 +1,9 @@
 from fastapi import APIRouter
-from .endpoints import nguoi_dung, auth, loai_cam_bien, cam_bien, may_bom, nhat_ky_may_bom
+from .endpoints import nguoi_dung, auth, loai_cam_bien, cam_bien, may_bom, nhat_ky_may_bom, du_lieu_cam_bien
 
 api_v1_router = APIRouter()
 
 # Include authentication routes
-
 api_v1_router.include_router(
     auth.router,
     prefix="/auth",
@@ -39,4 +38,10 @@ api_v1_router.include_router(
     nhat_ky_may_bom.router,
     prefix="/nhat-ky-may-bom",
     tags=["nhat-ky-may-bom"]
+)
+
+api_v1_router.include_router(
+    du_lieu_cam_bien.router,
+    prefix="/du-lieu-cam-bien",
+    tags=["du-lieu-cam-bien"]
 )
