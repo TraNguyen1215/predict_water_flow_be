@@ -18,6 +18,7 @@ async def update_avatar_nguoi_dung(
     ma_nguoi_dung: int,
     file: UploadFile = File(),
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
     """
     Cập nhật ảnh đại diện cho người dùng theo mã người dùng.
@@ -75,6 +76,7 @@ async def update_avatar_nguoi_dung(
 async def get_nguoi_dung(
     ma_nguoi_dung: int,
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
     """
     Lấy thông tin người dùng theo mã người dùng.
@@ -108,6 +110,7 @@ async def update_nguoi_dung(
     so_dien_thoai: str = Body(...),
     dia_chi: str = Body(...),
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
     """
     Cập nhật thông tin người dùng theo mã người dùng.
@@ -153,6 +156,7 @@ async def update_nguoi_dung(
 async def delete_nguoi_dung(
     ma_nguoi_dung: int,
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
     """
     Xoá người dùng theo mã người dùng.
