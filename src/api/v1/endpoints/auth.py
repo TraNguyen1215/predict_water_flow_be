@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.api import deps
 from src.core import security
+from src.core.config import settings
 
 router = APIRouter()
 
@@ -86,13 +87,23 @@ async def dang_nhap_nguoi_dung(
     token_data = {"sub": str(nguoi_dung.ma_nguoi_dung), "ten_dang_nhap": nguoi_dung.ten_dang_nhap}
     access_token = security.create_access_token(token_data)
 
+    expire_dt = datetime.datetime.utcnow() + datetime.timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    exp_unix = int(expire_dt.timestamp())
+    expire_iso = expire_dt.replace(microsecond=0).isoformat() + "Z"
+
     await db.execute(
         text("UPDATE nguoi_dung SET dang_nhap_lan_cuoi = :now WHERE ma_nguoi_dung = :ma_nguoi_dung"),
         {"now": datetime.datetime.utcnow(), "ma_nguoi_dung": nguoi_dung.ma_nguoi_dung},
     )
     await db.commit()
 
-    return {"access_token": access_token, "token_type": "bearer", "details": "Đăng nhập thành công"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "details": "Đăng nhập thành công",
+        "exp": exp_unix,
+        "expires_at": expire_iso,
+    }
 
 
 # đổi mật khẩu

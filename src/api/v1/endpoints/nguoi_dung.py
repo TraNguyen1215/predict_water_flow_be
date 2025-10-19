@@ -14,9 +14,9 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/jpg"}
 UPLOAD_DIR = Path("uploads/avatars")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-@router.put("/{ma_nguoi_dung}/anh-dai-dien", status_code=200)
+@router.put("/{ten_dang_nhap}/anh-dai-dien", status_code=200)
 async def update_avatar_nguoi_dung(
-    ma_nguoi_dung: uuid.UUID,
+    ten_dang_nhap: str,
     file: UploadFile = File(),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
@@ -32,16 +32,16 @@ async def update_avatar_nguoi_dung(
 
     result = await db.execute(
         text(
-            "SELECT ma_nguoi_dung, avatar FROM nguoi_dung WHERE ma_nguoi_dung = :ma_nguoi_dung"
+            "SELECT ma_nguoi_dung, avatar FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
         ),
-        {"ma_nguoi_dung": ma_nguoi_dung},
+        {"ten_dang_nhap": ten_dang_nhap},
     )
 
     nguoi_dung = result.fetchone()
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
-    if str(ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
     if nguoi_dung.avatar:
@@ -51,7 +51,7 @@ async def update_avatar_nguoi_dung(
 
     now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     ext = Path(file.filename).suffix
-    file_name = f"{now}_{ma_nguoi_dung}{ext}"
+    file_name = f"{now}_{ten_dang_nhap}{ext}"
     file_path = UPLOAD_DIR / file_name
 
     with file_path.open("wb") as buffer:
@@ -66,39 +66,39 @@ async def update_avatar_nguoi_dung(
             WHERE ma_nguoi_dung = :ma_nguoi_dung
         """
         ),
-        {"avatar": file_name, "ma_nguoi_dung": ma_nguoi_dung},
+        {"avatar": file_name, "ten_dang_nhap": ten_dang_nhap},
     )
 
     await db.commit()
     return {
         "message": "Cập nhật ảnh đại diện thành công!",
-        "ma_nguoi_dung": ma_nguoi_dung,
+        "ten_dang_nhap": ten_dang_nhap,
         "avatar": file_name,
     }
     
 # Lấy thông tin người dùng
-@router.get("/{ma_nguoi_dung}", status_code=200)
+@router.get("/{ten_dang_nhap}", status_code=200)
 async def get_nguoi_dung(
-    ma_nguoi_dung: uuid.UUID,
+    ten_dang_nhap: str,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
     """
-    Lấy thông tin người dùng theo mã người dùng.
+    Lấy thông tin người dùng theo tên đăng nhập.
     """
 
     result = await db.execute(
         text(
-            "SELECT * FROM nguoi_dung WHERE ma_nguoi_dung = :ma_nguoi_dung"
+            "SELECT * FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
         ),
-        {"ma_nguoi_dung": ma_nguoi_dung},
+        {"ten_dang_nhap": ten_dang_nhap},
     )
 
     nguoi_dung = result.fetchone()
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
-    if str(ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
     return {
@@ -113,9 +113,9 @@ async def get_nguoi_dung(
     }
     
 # Cập nhật thông tin người dùng
-@router.put("/{ma_nguoi_dung}", status_code=200)
+@router.put("/{ten_dang_nhap}", status_code=200)
 async def update_nguoi_dung(
-    ma_nguoi_dung: uuid.UUID,
+    ten_dang_nhap: str,
     ho_ten: str = Body(...),
     so_dien_thoai: str = Body(...),
     dia_chi: str = Body(...),
@@ -123,21 +123,21 @@ async def update_nguoi_dung(
     current_user=Depends(deps.get_current_user),
 ):
     """
-    Cập nhật thông tin người dùng theo mã người dùng.
+    Cập nhật thông tin người dùng theo tên đăng nhập.
     """
 
     result = await db.execute(
         text(
-            "SELECT ma_nguoi_dung FROM nguoi_dung WHERE ma_nguoi_dung = :ma_nguoi_dung"
+            "SELECT ma_nguoi_dung FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
         ),
-        {"ma_nguoi_dung": ma_nguoi_dung},
+        {"ten_dang_nhap": ten_dang_nhap},
     )
 
     nguoi_dung = result.fetchone()
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
-    if str(ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
     await db.execute(
@@ -155,39 +155,39 @@ async def update_nguoi_dung(
             "ho_ten": ho_ten,
             "so_dien_thoai": so_dien_thoai,
             "dia_chi": dia_chi,
-            "ma_nguoi_dung": ma_nguoi_dung,
+            "ten_dang_nhap": ten_dang_nhap,
         },
     )
 
     await db.commit()
     return {
         "message": "Cập nhật thông tin người dùng thành công!",
-        "ma_nguoi_dung": ma_nguoi_dung,
+        "ten_dang_nhap": ten_dang_nhap,
     }
     
 # Xoá người dùng
-@router.delete("/{ma_nguoi_dung}", status_code=200)
+@router.delete("/{ten_dang_nhap}", status_code=200)
 async def delete_nguoi_dung(
-    ma_nguoi_dung: uuid.UUID,
+    ten_dang_nhap: str,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
     """
-    Xoá người dùng theo mã người dùng.
+    Xoá người dùng theo tên đăng nhập.
     """
 
     result = await db.execute(
         text(
-            "SELECT ma_nguoi_dung, avatar FROM nguoi_dung WHERE ma_nguoi_dung = :ma_nguoi_dung"
+            "SELECT ma_nguoi_dung, avatar FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
         ),
-        {"ma_nguoi_dung": ma_nguoi_dung},
+        {"ten_dang_nhap": ten_dang_nhap},
     )
 
     nguoi_dung = result.fetchone()
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
-    if str(ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
     if nguoi_dung.avatar:
@@ -197,13 +197,13 @@ async def delete_nguoi_dung(
 
     await db.execute(
         text(
-            "DELETE FROM nguoi_dung WHERE ma_nguoi_dung = :ma_nguoi_dung"
+            "DELETE FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
         ),
-        {"ma_nguoi_dung": ma_nguoi_dung},
+        {"ten_dang_nhap": ten_dang_nhap},
     )
 
     await db.commit()
     return {
         "message": "Xoá người dùng thành công!",
-        "ma_nguoi_dung": ma_nguoi_dung,
+        "ten_dang_nhap": ten_dang_nhap,
     }
