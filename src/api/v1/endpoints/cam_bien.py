@@ -111,6 +111,7 @@ async def update_cam_bien(
     ma_may_bom: int = Body(None, embed=True),
     ngay_lap_dat: Optional[date] = Body(None, embed=True),
     trang_thai: Optional[bool] = Body(None, embed=True),
+    loai: Optional[int] = Body(None, embed=True),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -124,9 +125,9 @@ async def update_cam_bien(
 
     await db.execute(
         text(
-            "UPDATE cam_bien SET ten_cam_bien = :ten, mo_ta = :mo, ma_may_bom = :may, ngay_lap_dat = :ngay, trang_thai = :tt, thoi_gian_cap_nhat = NOW() WHERE ma_cam_bien = :ma"
+            "UPDATE cam_bien SET ten_cam_bien = :ten, mo_ta = :mo, ma_may_bom = :may, ngay_lap_dat = :ngay, trang_thai = :tt, loai = :loai, thoi_gian_cap_nhat = NOW() WHERE ma_cam_bien = :ma"
         ),
-        {"ten": ten_cam_bien, "mo": mo_ta, "may": ma_may_bom, "ngay": ngay_lap_dat, "tt": trang_thai, "ma": ma_cam_bien},
+        {"ten": ten_cam_bien, "mo": mo_ta, "may": ma_may_bom, "ngay": ngay_lap_dat, "tt": trang_thai, "loai": loai, "ma": ma_cam_bien},
     )
     await db.commit()
     return {"message": "Cập nhật cảm biến thành công", "ma_cam_bien": ma_cam_bien}
