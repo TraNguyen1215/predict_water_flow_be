@@ -150,16 +150,15 @@ async def doi_mat_khau(
 
     return {"message": "Đổi mật khẩu thành công"}
 
-# quên mật khẩu
-@router.post("/quen-mat-khau", status_code=200)
-async def quen_mat_khau(
+#quen-mat-khau/verify
+@router.post("/quen-mat-khau/verify", status_code=200)
+async def verify_quen_mat_khau(
     ten_dang_nhap: str = Body(..., embed=True),
     ten_may_bom: str = Body(..., embed=True),
     ngay_tuoi_gan_nhat: datetime.date = Body(..., embed=True),
-    mat_khau_moi: str = Body(..., embed=True),
     db: AsyncSession = Depends(deps.get_db_session),
 ):
-    """Đặt lại mật khẩu cho người dùng quên mật khẩu."""
+    """Xác minh thông tin người dùng quên mật khẩu."""
     result = await db.execute(
         text(
             """
@@ -181,22 +180,42 @@ async def quen_mat_khau(
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng hoặc máy bơm hợp lệ")
 
+    return {"message": "Xác minh thành công"}
+
+# quên mật khẩu
+@router.post("/quen-mat-khau/reset", status_code=200)
+async def quen_mat_khau(
+    ten_dang_nhap: str = Body(..., embed=True),
+    mat_khau_moi: str = Body(..., embed=True),
+    db: AsyncSession = Depends(deps.get_db_session),
+):
+    """Đặt lại mật khẩu cho người dùng quên mật khẩu."""
+    result = await db.execute(
+        text(
+            "SELECT ma_nguoi_dung FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
+        ),
+        {"ten_dang_nhap": ten_dang_nhap},
+    )
+    
+    nguoi_dung = result.fetchone()
+    if not nguoi_dung:
+        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+    
     if len(mat_khau_moi) < 6:
         raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
-
+    
     mat_khau_hash_moi, salt_moi = security.get_password_hash_and_salt(mat_khau_moi)
-
     await db.execute(
         text(
-            "UPDATE nguoi_dung SET mat_khau_hash = :mat_khau_hash, salt = :salt, thoi_gian_cap_nhat = NOW() WHERE ma_nguoi_dung = :ma_nguoi_dung"
+            "UPDATE nguoi_dung SET mat_khau_hash = :mat_khau_hash, salt = :salt, thoi_gian_cap_nhat = NOW() WHERE ten_dang_nhap = :ten_dang_nhap"
         ),
         {
             "mat_khau_hash": mat_khau_hash_moi,
             "salt": salt_moi,
-            "ma_nguoi_dung": nguoi_dung.ma_nguoi_dung,
+            "ten_dang_nhap": ten_dang_nhap,
         },
     )
-
+    
     await db.commit()
-
+    
     return {"message": "Đặt lại mật khẩu thành công"}

@@ -155,7 +155,7 @@ async def update_nguoi_dung(
             "ho_ten": ho_ten,
             "so_dien_thoai": so_dien_thoai,
             "dia_chi": dia_chi,
-            "ten_dang_nhap": ten_dang_nhap,
+            "ma_nguoi_dung": nguoi_dung.ma_nguoi_dung,
         },
     )
 
