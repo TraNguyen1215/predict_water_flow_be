@@ -49,7 +49,7 @@ async def list_cam_bien(
     """Danh sách cảm biến."""
     result = await db.execute(
         text(
-            "SELECT * FROM cam_bien WHERE ma_nguoi_dung = :ma_nd ORDER BY thoi_gian_tao DESC LIMIT :lim OFFSET :off"
+            "SELECT c.*, m.ten_may_bom, l.ten_loai_cam_bien FROM cam_bien c LEFT JOIN may_bom m ON c.ma_may_bom = m.ma_may_bom LEFT JOIN loai_cam_bien l ON c.loai = l.ma_loai_cam_bien WHERE c.ma_nguoi_dung = :ma_nd ORDER BY c.thoi_gian_tao DESC LIMIT :lim OFFSET :off"
         ),
         {"ma_nd": str(current_user.ma_nguoi_dung), "lim": limit, "off": offset},
     )
@@ -63,8 +63,10 @@ async def list_cam_bien(
             "ngay_lap_dat": r.ngay_lap_dat,
             "thoi_gian_tao": r.thoi_gian_tao,
             "ma_may_bom": r.ma_may_bom,
+            "ten_may_bom": r.ten_may_bom,
             "trang_thai": r.trang_thai,
             "loai": r.loai,
+            "ten_loai_cam_bien": r.ten_loai_cam_bien,
         }
         for r in rows
     ]
@@ -79,7 +81,7 @@ async def get_cam_bien(
 ):
     """Lấy thông tin cảm biến theo mã cảm biến."""
     result = await db.execute(
-        text("SELECT * FROM cam_bien WHERE ma_cam_bien = :ma"),
+        text("SELECT c.*, m.ten_may_bom, l.ten_loai_cam_bien FROM cam_bien c LEFT JOIN may_bom m ON c.ma_may_bom = m.ma_may_bom LEFT JOIN loai_cam_bien l ON c.loai = l.ma_loai_cam_bien WHERE c.ma_cam_bien = :ma"),
         {"ma": ma_cam_bien},
     )
     r = result.fetchone()
@@ -94,7 +96,10 @@ async def get_cam_bien(
         "mo_ta": r.mo_ta,
         "ngay_lap_dat": r.ngay_lap_dat,
         "ma_may_bom": r.ma_may_bom,
+        "ten_may_bom": r.ten_may_bom,
         "trang_thai": r.trang_thai,
+        "loai": r.loai,
+        "ten_loai_cam_bien": r.ten_loai_cam_bien,
     }
 
 
