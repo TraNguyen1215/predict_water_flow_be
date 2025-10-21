@@ -90,7 +90,7 @@ async def get_may_bom(
     }
 
 
-@router.put("/may-bom/{ma_may_bom}", status_code=200)
+@router.put("/{ma_may_bom}", status_code=200)
 async def update_may_bom(
     ma_may_bom: int,
     ten_may_bom: str = Body(..., embed=True),
@@ -119,7 +119,7 @@ async def update_may_bom(
     return {"message": "Cập nhật máy bơm thành công", "ma_may_bom": ma_may_bom}
 
 
-@router.delete("/may-bom/{ma_may_bom}", status_code=200)
+@router.delete("/{ma_may_bom}", status_code=200)
 async def delete_may_bom(
     ma_may_bom: int,
     db: AsyncSession = Depends(deps.get_db_session),
