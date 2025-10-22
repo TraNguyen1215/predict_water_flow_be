@@ -15,6 +15,7 @@ class DataCreate(BaseModel):
     so_xung: Optional[float]
     tong_the_tich: Optional[float]
     ghi_chu: Optional[str]
+    thoi_gian_tao: Optional[datetime] = datetime.now()
 
 
 class DataOut(BaseModel):

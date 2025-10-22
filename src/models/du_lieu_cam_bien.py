@@ -21,4 +21,3 @@ class DuLieuCamBien(Base):
     tong_the_tich = Column(Float)
     thoi_gian_tao = Column(DateTime, server_default=func.now())
     ghi_chu = Column(String)
-    thoi_gian_cap_nhat = Column(DateTime, onupdate=func.now())

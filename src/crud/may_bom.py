@@ -7,8 +7,15 @@ from src.models.may_bom import MayBom
 from src.models.nguoi_dung import NguoiDung
 
 
-async def create_may_bom(db: AsyncSession, ma_nd, payload: PumpCreate) -> MayBom:
-    obj = MayBom(ten_may_bom=payload.ten_may_bom, mo_ta=payload.mo_ta, ma_iot_lk=payload.ma_iot_lk, che_do=payload.che_do, trang_thai=payload.trang_thai, ma_nguoi_dung=ma_nd)
+async def create_may_bom(db: AsyncSession, ma_nd: uuid.UUID, payload: PumpCreate) -> MayBom:
+    obj = MayBom(
+        ten_may_bom=payload.ten_may_bom,
+        mo_ta=payload.mo_ta,
+        ma_iot_lk=payload.ma_iot_lk,
+        che_do=payload.che_do,
+        trang_thai=payload.trang_thai,
+        ma_nguoi_dung=ma_nd,
+    )
     db.add(obj)
     await db.flush()
     return obj
@@ -25,16 +32,13 @@ async def get_may_bom_by_id(db: AsyncSession, ma_may_bom: int):
     res = await db.execute(q)
     return res.scalars().first()
 
+async def get_may_bom_by_name_and_user(db: AsyncSession, ten_may_bom: str, ma_nguoi_dung: uuid.UUID):
+    q = select(MayBom).where((MayBom.ten_may_bom).lower().strip() == ten_may_bom.lower().strip(), MayBom.ma_nguoi_dung == ma_nguoi_dung)
+    res = await db.execute(q)
+    return res.scalars().first()
 
-async def update_may_bom(db: AsyncSession, ma_may_bom: int, payload: PumpCreate, m_nd: uuid.UUID):
-    q = await db.execute(select(NguoiDung).where(NguoiDung.ma_nguoi_dung == m_nd))
-    nd = q.scalars().first()
-    
-    if not nd or nd.loai_nguoi_dung != 1:
-        return None
-    
-    
-    
+
+async def update_may_bom(db: AsyncSession, ma_may_bom: int, payload: PumpCreate):
     obj = await get_may_bom_by_id(db, ma_may_bom)
     if not obj:
         return None

@@ -4,22 +4,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.api import deps
 from src.schemas.pump import PumpCreate, PumpOut
-from src.crud.may_bom import create_may_bom, list_may_bom_for_user, get_may_bom_by_id, update_may_bom, delete_may_bom
+from src.crud.may_bom import *
 
 router = APIRouter()
 
 
 @router.post("/", status_code=201, response_model=PumpOut)
-async def create_may_bom(
+async def create_may_bom_endpoint(
     payload: PumpCreate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
     """Tạo máy bơm mới"""
+    #kiem tra ten may bom da ton tai chua
+    existing = await get_may_bom_by_name_and_user(db, payload.ten_may_bom, current_user.ma_nguoi_dung)
+    if existing:
+        raise HTTPException(status_code=400, detail="Tên máy bơm đã tồn tại")
+    
     ma = await create_may_bom(db, current_user.ma_nguoi_dung, payload)
+    
     await db.commit()
     return PumpOut(
-        ma_may_bom=ma,
+        ma_may_bom=getattr(ma, "ma_may_bom"),
         ten_may_bom=payload.ten_may_bom,
         mo_ta=payload.mo_ta,
         ma_iot_lk=payload.ma_iot_lk,
@@ -29,7 +35,7 @@ async def create_may_bom(
 
 
 @router.get("/", status_code=200)
-async def list_may_bom(
+async def list_may_bom_endpoint(
     limit: int = Query(50, ge=1),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(deps.get_db_session),
@@ -53,7 +59,7 @@ async def list_may_bom(
 
 
 @router.get("/{ma_may_bom}", status_code=200)
-async def get_may_bom(
+async def get_may_bom_endpoint(
     ma_may_bom: int,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
@@ -75,7 +81,7 @@ async def get_may_bom(
 
 
 @router.put("/{ma_may_bom}", status_code=200)
-async def update_may_bom(
+async def update_may_bom_endpoint(
     ma_may_bom: int,
     payload: PumpCreate,
     db: AsyncSession = Depends(deps.get_db_session),
@@ -94,7 +100,7 @@ async def update_may_bom(
 
 
 @router.delete("/{ma_may_bom}", status_code=200)
-async def delete_may_bom(
+async def delete_may_bom_endpoint(
     ma_may_bom: int,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),

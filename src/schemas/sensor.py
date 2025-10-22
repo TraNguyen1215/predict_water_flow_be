@@ -9,6 +9,7 @@ class SensorCreate(BaseModel):
     ma_may_bom: Optional[int]
     ngay_lap_dat: Optional[date]
     loai: int
+    thoi_gian_tao: Optional[datetime] = datetime.now()
 
 
 class SensorOut(BaseModel):

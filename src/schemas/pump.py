@@ -9,6 +9,7 @@ class PumpCreate(BaseModel):
     ma_iot_lk: Optional[str]
     che_do: Optional[int]
     trang_thai: Optional[bool] = True
+    thoi_gian_tao: Optional[datetime] = datetime.now()
 
 
 class PumpOut(BaseModel):

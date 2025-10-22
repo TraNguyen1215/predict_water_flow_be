@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from src.schemas.loai_cam_bien import LoaiCamBienCreate
 from typing import Optional
 from src.models.loai_cam_bien import LoaiCamBien

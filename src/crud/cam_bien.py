@@ -8,7 +8,7 @@ from src.models.loai_cam_bien import LoaiCamBien
 
 
 async def create_cam_bien(db: AsyncSession, ma_nd, payload: SensorCreate) -> CamBien:
-    obj = CamBien(ma_nguoi_dung=ma_nd, ten_cam_bien=payload.ten_cam_bien, mo_ta=payload.mo_ta, ngay_lap_dat=payload.ngay_lap_dat, ma_may_bom=payload.ma_may_bom, loai=payload.loai)
+    obj = CamBien(ma_nguoi_dung=ma_nd, ten_cam_bien=payload.ten_cam_bien, mo_ta=payload.mo_ta, ngay_lap_dat=payload.ngay_lap_dat, ma_may_bom=payload.ma_may_bom, loai=payload.loai, thoi_gian_tao=payload.thoi_gian_tao)
     db.add(obj)
     await db.flush()
     return obj

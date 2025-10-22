@@ -3,10 +3,26 @@ from sqlalchemy import select
 from src.schemas.nhat_ky import NhatKyCreate
 from typing import Optional
 from src.models.nhat_ky_may_bom import NhatKyMayBom
+from datetime import timezone
+
+
+def _to_naive_utc(dt):
+    """Convert a datetime to naive UTC (no tzinfo). If dt is None, return None."""
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 async def create_nhat_ky(db: AsyncSession, payload: NhatKyCreate) -> NhatKyMayBom:
-    obj = NhatKyMayBom(ma_may_bom=payload.ma_may_bom, thoi_gian_bat=payload.thoi_gian_bat, thoi_gian_tat=payload.thoi_gian_tat, ghi_chu=payload.ghi_chu, thoi_gian_tao=payload.thoi_gian_tao)
+    obj = NhatKyMayBom(
+        ma_may_bom=payload.ma_may_bom,
+        thoi_gian_bat=_to_naive_utc(payload.thoi_gian_bat),
+        thoi_gian_tat=_to_naive_utc(payload.thoi_gian_tat),
+        ghi_chu=payload.ghi_chu,
+        thoi_gian_tao=_to_naive_utc(payload.thoi_gian_tao),
+    )
     db.add(obj)
     await db.flush()
     return obj
@@ -28,8 +44,8 @@ async def update_nhat_ky(db: AsyncSession, ma_nhat_ky: int, payload: NhatKyCreat
     obj = await get_nhat_ky_by_id(db, ma_nhat_ky)
     if not obj:
         return None
-    obj.thoi_gian_bat = payload.thoi_gian_bat
-    obj.thoi_gian_tat = payload.thoi_gian_tat
+    obj.thoi_gian_bat = _to_naive_utc(payload.thoi_gian_bat)
+    obj.thoi_gian_tat = _to_naive_utc(payload.thoi_gian_tat)
     obj.ghi_chu = payload.ghi_chu
     await db.flush()
     return obj
