@@ -6,6 +6,7 @@ from sqlalchemy import text
 from typing import List
 from src.api import deps
 from src.schemas.sensor import SensorCreate, SensorOut
+from src.crud.cam_bien import create_cam_bien, list_cam_bien_for_user, get_cam_bien_by_id, update_cam_bien, delete_cam_bien
 
 router = APIRouter()
 
@@ -17,22 +18,8 @@ async def create_cam_bien(
     current_user=Depends(deps.get_current_user),
 ):
     """Tạo cảm biến mới"""
-    result = await db.execute(
-        text(
-            "INSERT INTO cam_bien(ma_nguoi_dung, ten_cam_bien, mo_ta, ngay_lap_dat, ma_may_bom, thoi_gian_tao, loai) VALUES(:ma_nd, :ten, :mo, :ngay, :may, NOW(), :loai) RETURNING ma_cam_bien"
-        ),
-        {
-            "ma_nd": str(current_user.ma_nguoi_dung),
-            "ten": payload.ten_cam_bien,
-            "mo": payload.mo_ta,
-            "ngay": payload.ngay_lap_dat,
-            "may": payload.ma_may_bom,
-            "loai": payload.loai,
-        },
-    )
-    inserted = result.fetchone()
+    ma = await create_cam_bien(db, current_user.ma_nguoi_dung, payload)
     await db.commit()
-    ma = inserted.ma_cam_bien if inserted else None
     return SensorOut(
         ma_cam_bien=ma,
         ten_cam_bien=payload.ten_cam_bien,
@@ -51,14 +38,7 @@ async def list_cam_bien(
     current_user=Depends(deps.get_current_user),
 ):
     """Danh sách cảm biến."""
-    result = await db.execute(
-        text(
-            "SELECT c.*, m.ten_may_bom, l.ten_loai_cam_bien FROM cam_bien c LEFT JOIN may_bom m ON c.ma_may_bom = m.ma_may_bom LEFT JOIN loai_cam_bien l ON c.loai = l.ma_loai_cam_bien WHERE c.ma_nguoi_dung = :ma_nd ORDER BY c.thoi_gian_tao DESC LIMIT :lim OFFSET :off"
-        ),
-        {"ma_nd": str(current_user.ma_nguoi_dung), "lim": limit, "off": offset},
-    )
-    
-    rows = result.fetchall()
+    rows = await list_cam_bien_for_user(db, current_user.ma_nguoi_dung, limit, offset)
     items = [
         SensorOut(
             ma_cam_bien=r.ma_cam_bien,
@@ -84,11 +64,7 @@ async def get_cam_bien(
     current_user=Depends(deps.get_current_user),
 ):
     """Lấy thông tin cảm biến theo mã cảm biến."""
-    result = await db.execute(
-        text("SELECT c.*, m.ten_may_bom, l.ten_loai_cam_bien FROM cam_bien c LEFT JOIN may_bom m ON c.ma_may_bom = m.ma_may_bom LEFT JOIN loai_cam_bien l ON c.loai = l.ma_loai_cam_bien WHERE c.ma_cam_bien = :ma"),
-        {"ma": ma_cam_bien},
-    )
-    r = result.fetchone()
+    r = await get_cam_bien_by_id(db, ma_cam_bien)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy cảm biến")
     if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
@@ -115,19 +91,12 @@ async def update_cam_bien(
     current_user=Depends(deps.get_current_user),
 ):
     """Cập nhật thông tin cảm biến."""
-    result = await db.execute(text("SELECT ma_nguoi_dung FROM cam_bien WHERE ma_cam_bien = :ma"), {"ma": ma_cam_bien})
-    r = result.fetchone()
+    r = await get_cam_bien_by_id(db, ma_cam_bien)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy cảm biến")
     if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép chỉnh sửa cảm biến này")
-
-    await db.execute(
-        text(
-            "UPDATE cam_bien SET ten_cam_bien = :ten, mo_ta = :mo, ma_may_bom = :may, ngay_lap_dat = :ngay, trang_thai = :tt, loai = :loai, thoi_gian_cap_nhat = NOW() WHERE ma_cam_bien = :ma"
-        ),
-        {"ten": payload.ten_cam_bien, "mo": payload.mo_ta, "may": payload.ma_may_bom, "ngay": payload.ngay_lap_dat, "tt": payload.trang_thai if hasattr(payload, 'trang_thai') else None, "loai": payload.loai, "ma": ma_cam_bien},
-    )
+    await update_cam_bien(db, ma_cam_bien, payload)
     await db.commit()
     return {"message": "Cập nhật cảm biến thành công", "ma_cam_bien": ma_cam_bien}
 
@@ -139,14 +108,13 @@ async def delete_cam_bien(
     current_user=Depends(deps.get_current_user),
 ):
     """Xoá cảm biến theo mã cảm biến."""
-    result = await db.execute(text("SELECT ma_nguoi_dung FROM cam_bien WHERE ma_cam_bien = :ma"), {"ma": ma_cam_bien})
-    r = result.fetchone()
+    r = await get_cam_bien_by_id(db, ma_cam_bien)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy cảm biến")
     if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép xoá cảm biến này")
 
-    await db.execute(text("DELETE FROM cam_bien WHERE ma_cam_bien = :ma"), {"ma": ma_cam_bien})
+    await delete_cam_bien(db, ma_cam_bien)
     await db.commit()
     
     return {"message": "Xoá cảm biến thành công", "ma_cam_bien": ma_cam_bien}

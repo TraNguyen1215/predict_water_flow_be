@@ -9,6 +9,7 @@ import aiofiles
 import os
 from src.api import deps
 from src.schemas.user import UserPublic, UserUpdate
+from src.crud.nguoi_dung import get_by_username, get_by_id, update_avatar, delete_user
 
 router = APIRouter()
 
@@ -34,14 +35,7 @@ async def update_avatar_nguoi_dung(
             status_code=400, detail="Chỉ cho phép file ảnh (JPEG, PNG, WEBP)"
         )
 
-    result = await db.execute(
-        text(
-            "SELECT ma_nguoi_dung, avatar FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
-        ),
-        {"ten_dang_nhap": ten_dang_nhap},
-    )
-
-    nguoi_dung = result.fetchone()
+    nguoi_dung = await get_by_username(db, ten_dang_nhap)
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
@@ -71,18 +65,7 @@ async def update_avatar_nguoi_dung(
     except Exception:
         pass
 
-    await db.execute(
-        text(
-            """
-            UPDATE nguoi_dung
-            SET avatar = :avatar,
-                thoi_gian_cap_nhat = NOW()
-            WHERE ma_nguoi_dung = :ma_nguoi_dung
-        """
-        ),
-        {"avatar": file_name, "ten_dang_nhap": ten_dang_nhap},
-    )
-
+    await update_avatar(db, nguoi_dung.ma_nguoi_dung, file_name)
     await db.commit()
     return {
         "message": "Cập nhật ảnh đại diện thành công!",
@@ -101,14 +84,7 @@ async def get_nguoi_dung(
     Lấy thông tin người dùng theo tên đăng nhập.
     """
 
-    result = await db.execute(
-        text(
-            "SELECT * FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
-        ),
-        {"ten_dang_nhap": ten_dang_nhap},
-    )
-
-    nguoi_dung = result.fetchone()
+    nguoi_dung = await get_by_username(db, ten_dang_nhap)
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
@@ -138,39 +114,20 @@ async def update_nguoi_dung(
     Cập nhật thông tin người dùng theo tên đăng nhập.
     """
 
-    result = await db.execute(
-        text(
-            "SELECT ma_nguoi_dung FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
-        ),
-        {"ten_dang_nhap": ten_dang_nhap},
-    )
-
-    nguoi_dung = result.fetchone()
+    nguoi_dung = await get_by_username(db, ten_dang_nhap)
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
     if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
-    await db.execute(
-        text(
-            """
-            UPDATE nguoi_dung
-            SET ho_ten = :ho_ten,
-                so_dien_thoai = :so_dien_thoai,
-                dia_chi = :dia_chi,
-                thoi_gian_cap_nhat = NOW()
-            WHERE ma_nguoi_dung = :ma_nguoi_dung
-        """
-        ),
-        {
-            "ho_ten": payload.ho_ten,
-            "so_dien_thoai": payload.so_dien_thoai,
-            "dia_chi": payload.dia_chi,
-            "ma_nguoi_dung": nguoi_dung.ma_nguoi_dung,
-        },
-    )
-
+    # update fields on ORM instance and commit
+    if payload.ho_ten is not None:
+        nguoi_dung.ho_ten = payload.ho_ten
+    if payload.so_dien_thoai is not None:
+        nguoi_dung.so_dien_thoai = payload.so_dien_thoai
+    if payload.dia_chi is not None:
+        nguoi_dung.dia_chi = payload.dia_chi
     await db.commit()
     return {
         "message": "Cập nhật thông tin người dùng thành công!",
@@ -188,14 +145,7 @@ async def delete_nguoi_dung(
     Xoá người dùng theo tên đăng nhập.
     """
 
-    result = await db.execute(
-        text(
-            "SELECT ma_nguoi_dung, avatar FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
-        ),
-        {"ten_dang_nhap": ten_dang_nhap},
-    )
-
-    nguoi_dung = result.fetchone()
+    nguoi_dung = await get_by_username(db, ten_dang_nhap)
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
@@ -207,13 +157,7 @@ async def delete_nguoi_dung(
         if old_path.exists():
             old_path.unlink()
 
-    await db.execute(
-        text(
-            "DELETE FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
-        ),
-        {"ten_dang_nhap": ten_dang_nhap},
-    )
-
+    await delete_user(db, nguoi_dung.ma_nguoi_dung)
     await db.commit()
     return {
         "message": "Xoá người dùng thành công!",

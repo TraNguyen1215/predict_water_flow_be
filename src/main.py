@@ -16,7 +16,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
     
-    # Configure CORS
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,7 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
     
-    # Include API router
+# Include API router
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 setup_logging()
 

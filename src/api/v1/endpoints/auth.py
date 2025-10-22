@@ -8,6 +8,7 @@ from src.api import deps
 from src.core import security
 from src.core.config import settings
 from src.schemas.user import TokenResponse
+from src.crud.nguoi_dung import get_by_username, create_user, get_by_id, update_password
 
 router = APIRouter()
 
@@ -26,35 +27,16 @@ async def register_nguoi_dung(
     if len(mat_khau) < 6:
         raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 6 ký tự")
 
-    result = await db.execute(
-        text(
-            "SELECT ma_nguoi_dung FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
-        ),
-        {"ten_dang_nhap": ten_dang_nhap},
-    )
-    exists = result.fetchone()
+    exists = await get_by_username(db, ten_dang_nhap)
     if exists:
         raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại")
 
     mat_khau_hash, salt = security.get_password_hash_and_salt(mat_khau)
 
-    await db.execute(
-        text(
-            "INSERT INTO nguoi_dung(ma_nguoi_dung, ten_dang_nhap, mat_khau_hash, salt, ho_ten, so_dien_thoai, thoi_gian_tao) VALUES(:ma_nguoi_dung, :ten_dang_nhap, :mat_khau_hash, :salt, :ho_ten, :so_dien_thoai, NOW())"
-        ),
-        {
-            "ma_nguoi_dung": uuid.uuid4(),
-            "ten_dang_nhap": ten_dang_nhap,
-            "mat_khau_hash": mat_khau_hash,
-            "salt": salt,
-            "ho_ten": ho_ten,
-            "so_dien_thoai": ten_dang_nhap,
-        },
-    )
-
+    user = await create_user(db, ten_dang_nhap=ten_dang_nhap, mat_khau_hash=mat_khau_hash, salt=salt, ho_ten=ho_ten)
     await db.commit()
 
-    return {"message": "Đăng ký thành công", "ten_dang_nhap": ten_dang_nhap}
+    return {"message": "Đăng ký thành công", "ten_dang_nhap": user.ten_dang_nhap}
 
 
 # đăng nhập người dùng
@@ -69,14 +51,7 @@ async def dang_nhap_nguoi_dung(
     Trả về access token (JWT) khi đăng nhập thành công.
     """
 
-    result = await db.execute(
-        text(
-            "SELECT ma_nguoi_dung, ten_dang_nhap, mat_khau_hash, salt FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
-        ),
-        {"ten_dang_nhap": ten_dang_nhap},
-    )
-
-    nguoi_dung = result.fetchone()
+    nguoi_dung = await get_by_username(db, ten_dang_nhap)
     if not nguoi_dung:
         raise HTTPException(status_code=400, detail="Tên đăng nhập hoặc mật khẩu không đúng")
 
@@ -90,10 +65,9 @@ async def dang_nhap_nguoi_dung(
     exp_unix = int(expire_dt.timestamp())
     expire_iso = expire_dt.replace(microsecond=0).isoformat() + "Z"
 
-    await db.execute(
-        text("UPDATE nguoi_dung SET dang_nhap_lan_cuoi = :now WHERE ma_nguoi_dung = :ma_nguoi_dung"),
-        {"now": datetime.datetime.utcnow(), "ma_nguoi_dung": nguoi_dung.ma_nguoi_dung},
-    )
+    nguoi = await get_by_id(db, nguoi_dung.ma_nguoi_dung)
+    if nguoi:
+        nguoi.dang_nhap_lan_cuoi = datetime.datetime.utcnow()
     await db.commit()
 
     return {
@@ -115,36 +89,18 @@ async def doi_mat_khau(
 ):
     """Đổi mật khẩu cho người dùng đã đăng nhập."""
 
-    result = await db.execute(
-        text(
-            "SELECT mat_khau_hash, salt FROM nguoi_dung WHERE ma_nguoi_dung = :ma_nguoi_dung"
-        ),
-        {"ma_nguoi_dung": current_user.ma_nguoi_dung},
-    )
-
-    nguoi_dung = result.fetchone()
-    if not nguoi_dung:
+    nguoi = await get_by_id(db, current_user.ma_nguoi_dung)
+    if not nguoi:
         raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
 
-    if not security.verify_password(mat_khau_cu, nguoi_dung.salt, nguoi_dung.mat_khau_hash):
+    if not security.verify_password(mat_khau_cu, nguoi.salt, nguoi.mat_khau_hash):
         raise HTTPException(status_code=400, detail="Mật khẩu cũ không đúng")
 
     if len(mat_khau_moi) < 6:
         raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
 
     mat_khau_hash_moi, salt_moi = security.get_password_hash_and_salt(mat_khau_moi)
-
-    await db.execute(
-        text(
-            "UPDATE nguoi_dung SET mat_khau_hash = :mat_khau_hash, salt = :salt, thoi_gian_cap_nhat = NOW() WHERE ma_nguoi_dung = :ma_nguoi_dung"
-        ),
-        {
-            "mat_khau_hash": mat_khau_hash_moi,
-            "salt": salt_moi,
-            "ma_nguoi_dung": current_user.ma_nguoi_dung,
-        },
-    )
-
+    await update_password(db, current_user.ma_nguoi_dung, mat_khau_hash_moi, salt_moi)
     await db.commit()
 
     return {"message": "Đổi mật khẩu thành công"}
@@ -189,32 +145,15 @@ async def quen_mat_khau(
     db: AsyncSession = Depends(deps.get_db_session),
 ):
     """Đặt lại mật khẩu cho người dùng quên mật khẩu."""
-    result = await db.execute(
-        text(
-            "SELECT ma_nguoi_dung FROM nguoi_dung WHERE ten_dang_nhap = :ten_dang_nhap"
-        ),
-        {"ten_dang_nhap": ten_dang_nhap},
-    )
-    
-    nguoi_dung = result.fetchone()
-    if not nguoi_dung:
+    nguoi = await get_by_username(db, ten_dang_nhap)
+    if not nguoi:
         raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
-    
+
     if len(mat_khau_moi) < 6:
         raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
-    
+
     mat_khau_hash_moi, salt_moi = security.get_password_hash_and_salt(mat_khau_moi)
-    await db.execute(
-        text(
-            "UPDATE nguoi_dung SET mat_khau_hash = :mat_khau_hash, salt = :salt, thoi_gian_cap_nhat = NOW() WHERE ten_dang_nhap = :ten_dang_nhap"
-        ),
-        {
-            "mat_khau_hash": mat_khau_hash_moi,
-            "salt": salt_moi,
-            "ten_dang_nhap": ten_dang_nhap,
-        },
-    )
-    
+    await update_password(db, nguoi.ma_nguoi_dung, mat_khau_hash_moi, salt_moi)
     await db.commit()
-    
+
     return {"message": "Đặt lại mật khẩu thành công"}

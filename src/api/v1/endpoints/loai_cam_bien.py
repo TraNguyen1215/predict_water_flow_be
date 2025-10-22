@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 from src.api import deps
 from src.schemas.loai_cam_bien import LoaiCamBienCreate, LoaiCamBienOut
+from src.crud.loai_cam_bien import list_loai_cam_bien, get_loai_cam_bien_by_id, create_loai_cam_bien, update_loai_cam_bien, delete_loai_cam_bien
 
 router = APIRouter()
 
@@ -19,14 +20,8 @@ async def get_loai_cam_bien(
     Lấy danh sách loại cảm biến.
     """
 
-    result = await db.execute(
-        text(
-            "SELECT * FROM loai_cam_bien ORDER BY ma_loai_cam_bien"
-        )
-    )
-
-    loai_cam_bien_list = result.fetchall()
-    return {"data": [LoaiCamBienOut(ma_loai_cam_bien=row.ma_loai_cam_bien, ten_loai_cam_bien=row.ten_loai_cam_bien, thoi_gian_tao=row.thoi_gian_tao, thoi_gian_cap_nhat=row.thoi_gian_cap_nhat) for row in loai_cam_bien_list]}
+    rows = await list_loai_cam_bien(db)
+    return {"data": [LoaiCamBienOut(ma_loai_cam_bien=row.ma_loai_cam_bien, ten_loai_cam_bien=row.ten_loai_cam_bien, thoi_gian_tao=row.thoi_gian_tao, thoi_gian_cap_nhat=row.thoi_gian_cap_nhat) for row in rows]}
 
 
 # Lấy thông tin loại cảm biến theo mã
@@ -39,18 +34,10 @@ async def get_loai_cam_bien_theo_ma(
     Lấy thông tin loại cảm biến theo mã loại cảm biến.
     """
     
-    result = await db.execute(
-        text(
-            "SELECT * FROM loai_cam_bien WHERE ma_loai_cam_bien = :ma_loai_cam_bien"
-        ),
-        {"ma_loai_cam_bien": ma_loai_cam_bien},
-    )
-    
-    loai_cam_bien = result.fetchone()
-    if not loai_cam_bien:
+    r = await get_loai_cam_bien_by_id(db, ma_loai_cam_bien)
+    if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy loại cảm biến")
-    
-    return LoaiCamBienOut(ma_loai_cam_bien=loai_cam_bien.ma_loai_cam_bien, ten_loai_cam_bien=loai_cam_bien.ten_loai_cam_bien, thoi_gian_tao=loai_cam_bien.thoi_gian_tao, thoi_gian_cap_nhat=loai_cam_bien.thoi_gian_cap_nhat)
+    return LoaiCamBienOut(ma_loai_cam_bien=r.ma_loai_cam_bien, ten_loai_cam_bien=r.ten_loai_cam_bien, thoi_gian_tao=r.thoi_gian_tao, thoi_gian_cap_nhat=r.thoi_gian_cap_nhat)
 
 # Thêm loại cảm biến mới
 @router.post("/", status_code=201)
@@ -62,17 +49,8 @@ async def create_loai_cam_bien(
     Thêm loại cảm biến mới.
     """
 
-    await db.execute(
-        text(
-            "INSERT INTO loai_cam_bien(ten_loai_cam_bien, thoi_gian_tao) VALUES(:ten_loai_cam_bien, NOW())"
-        ),
-        {
-            "ten_loai_cam_bien": payload.ten_loai_cam_bien,
-        },
-    )
-
+    await create_loai_cam_bien(db, payload)
     await db.commit()
-
     return {"message": "Thêm loại cảm biến thành công", "ten_loai_cam_bien": payload.ten_loai_cam_bien}
 
 # Cập nhật loại cảm biến
@@ -86,33 +64,11 @@ async def update_loai_cam_bien(
     Cập nhật loại cảm biến theo mã loại cảm biến.
     """
 
-    result = await db.execute(
-        text(
-            "SELECT ma_loai_cam_bien FROM loai_cam_bien WHERE ma_loai_cam_bien = :ma_loai_cam_bien"
-        ),
-        {"ma_loai_cam_bien": ma_loai_cam_bien},
-    )
-
-    loai_cam_bien = result.fetchone()
-    if not loai_cam_bien:
+    r = await get_loai_cam_bien_by_id(db, ma_loai_cam_bien)
+    if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy loại cảm biến")
 
-
-    await db.execute(
-        text(
-            """
-            UPDATE loai_cam_bien
-            SET ten_loai_cam_bien = :ten_loai_cam_bien,
-                thoi_gian_cap_nhat = NOW()
-            WHERE ma_loai_cam_bien = :ma_loai_cam_bien
-        """
-        ),
-        {
-            "ten_loai_cam_bien": payload.ten_loai_cam_bien if payload and payload.ten_loai_cam_bien else loai_cam_bien.ten_loai_cam_bien,
-            "ma_loai_cam_bien": ma_loai_cam_bien,
-        },
-    )
-
+    await update_loai_cam_bien(db, ma_loai_cam_bien, payload)
     await db.commit()
     return {
         "message": "Cập nhật loại cảm biến thành công!",
@@ -129,24 +85,11 @@ async def delete_loai_cam_bien(
     Xoá loại cảm biến theo mã loại cảm biến.
     """
 
-    result = await db.execute(
-        text(
-            "SELECT ma_loai_cam_bien FROM loai_cam_bien WHERE ma_loai_cam_bien = :ma_loai_cam_bien"
-        ),
-        {"ma_loai_cam_bien": ma_loai_cam_bien},
-    )
-
-    loai_cam_bien = result.fetchone()
-    if not loai_cam_bien:
+    r = await get_loai_cam_bien_by_id(db, ma_loai_cam_bien)
+    if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy loại cảm biến")
 
-    await db.execute(
-        text(
-            "DELETE FROM loai_cam_bien WHERE ma_loai_cam_bien = :ma_loai_cam_bien"
-        ),
-        {"ma_loai_cam_bien": ma_loai_cam_bien},
-    )
-
+    await delete_loai_cam_bien(db, ma_loai_cam_bien)
     await db.commit()
     return {
         "message": "Xoá loại cảm biến thành công!",

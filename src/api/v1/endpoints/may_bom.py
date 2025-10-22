@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.api import deps
 from src.schemas.pump import PumpCreate, PumpOut
+from src.crud.may_bom import create_may_bom, list_may_bom_for_user, get_may_bom_by_id, update_may_bom, delete_may_bom
 
 router = APIRouter()
 
@@ -15,22 +16,8 @@ async def create_may_bom(
     current_user=Depends(deps.get_current_user),
 ):
     """Tạo máy bơm mới"""
-    result = await db.execute(
-        text(
-            "INSERT INTO may_bom(ten_may_bom, mo_ta, ma_iot_lk, che_do, trang_thai, ma_nguoi_dung, thoi_gian_tao) VALUES(:ten, :mo, :iot, :che, :tt, :ma_nd, NOW()) RETURNING ma_may_bom"
-        ),
-        {
-            "ten": payload.ten_may_bom,
-            "mo": payload.mo_ta,
-            "iot": payload.ma_iot_lk,
-            "che": payload.che_do,
-            "tt": payload.trang_thai,
-            "ma_nd": str(current_user.ma_nguoi_dung),
-        },
-    )
-    inserted = result.fetchone()
+    ma = await create_may_bom(db, current_user.ma_nguoi_dung, payload)
     await db.commit()
-    ma = inserted.ma_may_bom if inserted else None
     return PumpOut(
         ma_may_bom=ma,
         ten_may_bom=payload.ten_may_bom,
@@ -49,13 +36,7 @@ async def list_may_bom(
     current_user=Depends(deps.get_current_user),
 ):
     """Danh sách máy bơm"""
-    result = await db.execute(
-        text(
-            "SELECT * FROM may_bom WHERE ma_nguoi_dung = :ma_nd ORDER BY thoi_gian_tao DESC LIMIT :lim OFFSET :off"
-        ),
-        {"ma_nd": str(current_user.ma_nguoi_dung), "lim": limit, "off": offset},
-    )
-    rows = result.fetchall()
+    rows = await list_may_bom_for_user(db, current_user.ma_nguoi_dung, limit, offset)
     items = [
         PumpOut(
             ma_may_bom=r.ma_may_bom,
@@ -78,8 +59,7 @@ async def get_may_bom(
     current_user=Depends(deps.get_current_user),
 ):
     """Lấy thông tin máy bơm theo mã máy bơm (chỉ chủ sở hữu mới được phép truy cập)."""
-    result = await db.execute(text("SELECT * FROM may_bom WHERE ma_may_bom = :ma"), {"ma": ma_may_bom})
-    r = result.fetchone()
+    r = await get_may_bom_by_id(db, ma_may_bom)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm")
     if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
@@ -102,19 +82,13 @@ async def update_may_bom(
     current_user=Depends(deps.get_current_user),
 ):
     """Cập nhật thông tin máy bơm (chỉ chủ sở hữu mới được phép chỉnh sửa)."""
-    result = await db.execute(text("SELECT ma_nguoi_dung FROM may_bom WHERE ma_may_bom = :ma"), {"ma": ma_may_bom})
-    r = result.fetchone()
+    r = await get_may_bom_by_id(db, ma_may_bom)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm")
     if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép chỉnh sửa máy bơm này")
 
-    await db.execute(
-        text(
-            "UPDATE may_bom SET ten_may_bom = :ten, mo_ta = :mo, ma_iot_lk = :iot, che_do = :che, trang_thai = :tt, thoi_gian_cap_nhat = NOW() WHERE ma_may_bom = :ma"
-        ),
-        {"ten": payload.ten_may_bom, "mo": payload.mo_ta, "iot": payload.ma_iot_lk, "che": payload.che_do, "tt": payload.trang_thai, "ma": ma_may_bom},
-    )
+    await update_may_bom(db, ma_may_bom, payload)
     await db.commit()
     return {"message": "Cập nhật máy bơm thành công", "ma_may_bom": ma_may_bom}
 
@@ -126,13 +100,12 @@ async def delete_may_bom(
     current_user=Depends(deps.get_current_user),
 ):
     """Xoá máy bơm (chỉ chủ sở hữu mới được phép xoá)."""
-    result = await db.execute(text("SELECT ma_nguoi_dung FROM may_bom WHERE ma_may_bom = :ma"), {"ma": ma_may_bom})
-    r = result.fetchone()
+    r = await get_may_bom_by_id(db, ma_may_bom)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm")
     if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép xoá máy bơm này")
 
-    await db.execute(text("DELETE FROM may_bom WHERE ma_may_bom = :ma"), {"ma": ma_may_bom})
+    await delete_may_bom(db, ma_may_bom)
     await db.commit()
     return {"message": "Xoá máy bơm thành công", "ma_may_bom": ma_may_bom}

@@ -3,8 +3,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.db import get_db
 from src.core import security
-from sqlalchemy import text
 import uuid
+from src.crud.nguoi_dung import get_by_id
 
 security_scheme = HTTPBearer()
 
@@ -32,8 +32,7 @@ async def get_current_user(
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token subject")
 
-    result = await db.execute(text("SELECT ma_nguoi_dung, ten_dang_nhap FROM nguoi_dung WHERE ma_nguoi_dung = :ma"), {"ma": str(user_uuid)})
-    user = result.fetchone()
+    user = await get_by_id(db, user_uuid)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Không tìm thấy người dùng")
 
