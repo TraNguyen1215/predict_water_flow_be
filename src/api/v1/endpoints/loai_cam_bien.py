@@ -6,6 +6,7 @@ from sqlalchemy import text
 from pathlib import Path
 import shutil
 from src.api import deps
+from src.schemas.loai_cam_bien import LoaiCamBienCreate, LoaiCamBienOut
 
 router = APIRouter()
 
@@ -25,21 +26,11 @@ async def get_loai_cam_bien(
     )
 
     loai_cam_bien_list = result.fetchall()
-    return {
-        "data": [
-            {
-                "ma_loai_cam_bien": row.ma_loai_cam_bien,
-                "ten_loai_cam_bien": row.ten_loai_cam_bien,
-                "thoi_gian_tao": row.thoi_gian_tao,
-                "thoi_gian_cap_nhat": row.thoi_gian_cap_nhat,
-            }
-            for row in loai_cam_bien_list
-        ]
-    }
+    return {"data": [LoaiCamBienOut(ma_loai_cam_bien=row.ma_loai_cam_bien, ten_loai_cam_bien=row.ten_loai_cam_bien, thoi_gian_tao=row.thoi_gian_tao, thoi_gian_cap_nhat=row.thoi_gian_cap_nhat) for row in loai_cam_bien_list]}
 
 
 # Lấy thông tin loại cảm biến theo mã
-@router.get("/{ma_loai_cam_bien}", status_code=200)
+@router.get("/{ma_loai_cam_bien}", status_code=200, response_model=LoaiCamBienOut)
 async def get_loai_cam_bien_theo_ma(
     ma_loai_cam_bien: int,
     db: AsyncSession = Depends(deps.get_db_session),
@@ -59,17 +50,12 @@ async def get_loai_cam_bien_theo_ma(
     if not loai_cam_bien:
         raise HTTPException(status_code=404, detail="Không tìm thấy loại cảm biến")
     
-    return {
-        "ma_loai_cam_bien": loai_cam_bien.ma_loai_cam_bien,
-        "ten_loai_cam_bien": loai_cam_bien.ten_loai_cam_bien,
-        "thoi_gian_tao": loai_cam_bien.thoi_gian_tao,
-        "thoi_gian_cap_nhat": loai_cam_bien.thoi_gian_cap_nhat,
-    }
+    return LoaiCamBienOut(ma_loai_cam_bien=loai_cam_bien.ma_loai_cam_bien, ten_loai_cam_bien=loai_cam_bien.ten_loai_cam_bien, thoi_gian_tao=loai_cam_bien.thoi_gian_tao, thoi_gian_cap_nhat=loai_cam_bien.thoi_gian_cap_nhat)
 
 # Thêm loại cảm biến mới
 @router.post("/", status_code=201)
 async def create_loai_cam_bien(
-    ten_loai_cam_bien: str = Body(...),
+    payload: LoaiCamBienCreate,
     db: AsyncSession = Depends(deps.get_db_session),
 ):
     """
@@ -81,19 +67,19 @@ async def create_loai_cam_bien(
             "INSERT INTO loai_cam_bien(ten_loai_cam_bien, thoi_gian_tao) VALUES(:ten_loai_cam_bien, NOW())"
         ),
         {
-            "ten_loai_cam_bien": ten_loai_cam_bien,
+            "ten_loai_cam_bien": payload.ten_loai_cam_bien,
         },
     )
 
     await db.commit()
 
-    return {"message": "Thêm loại cảm biến thành công", "ten_loai_cam_bien": ten_loai_cam_bien}
+    return {"message": "Thêm loại cảm biến thành công", "ten_loai_cam_bien": payload.ten_loai_cam_bien}
 
 # Cập nhật loại cảm biến
 @router.put("/{ma_loai_cam_bien}", status_code=200)
 async def update_loai_cam_bien(
     ma_loai_cam_bien: int,
-    ten_loai_cam_bien: str = Body(None),
+    payload: LoaiCamBienCreate,
     db: AsyncSession = Depends(deps.get_db_session),
 ):
     """
@@ -122,7 +108,7 @@ async def update_loai_cam_bien(
         """
         ),
         {
-            "ten_loai_cam_bien": ten_loai_cam_bien if ten_loai_cam_bien else loai_cam_bien.ten_loai_cam_bien,
+            "ten_loai_cam_bien": payload.ten_loai_cam_bien if payload and payload.ten_loai_cam_bien else loai_cam_bien.ten_loai_cam_bien,
             "ma_loai_cam_bien": ma_loai_cam_bien,
         },
     )

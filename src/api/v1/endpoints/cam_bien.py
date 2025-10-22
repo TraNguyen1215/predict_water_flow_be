@@ -5,17 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import List
 from src.api import deps
+from src.schemas.sensor import SensorCreate, SensorOut
 
 router = APIRouter()
 
 
-@router.post("/", status_code=201)
+@router.post("/", status_code=201, response_model=SensorOut)
 async def create_cam_bien(
-    ten_cam_bien: str = Body(..., embed=True),
-    mo_ta: Optional[str] = Body(None, embed=True),
-    ma_may_bom: int = Body(None, embed=True),
-    ngay_lap_dat: Optional[date] = Body(None, embed=True),
-    loai: int = Body(..., embed=True),
+    payload: SensorCreate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -26,17 +23,24 @@ async def create_cam_bien(
         ),
         {
             "ma_nd": str(current_user.ma_nguoi_dung),
-            "ten": ten_cam_bien,
-            "mo": mo_ta,
-            "ngay": ngay_lap_dat,
-            "may": ma_may_bom,
-            "loai": loai
+            "ten": payload.ten_cam_bien,
+            "mo": payload.mo_ta,
+            "ngay": payload.ngay_lap_dat,
+            "may": payload.ma_may_bom,
+            "loai": payload.loai,
         },
     )
     inserted = result.fetchone()
     await db.commit()
     ma = inserted.ma_cam_bien if inserted else None
-    return {"ma_cam_bien": ma, "ten_cam_bien": ten_cam_bien, "mo_ta": mo_ta, "ma_may_bom": ma_may_bom, "ngay_lap_dat": ngay_lap_dat, "loai": loai}
+    return SensorOut(
+        ma_cam_bien=ma,
+        ten_cam_bien=payload.ten_cam_bien,
+        mo_ta=payload.mo_ta,
+        ngay_lap_dat=payload.ngay_lap_dat,
+        ma_may_bom=payload.ma_may_bom,
+        loai=payload.loai,
+    )
 
 
 @router.get("/", status_code=200)
@@ -56,18 +60,18 @@ async def list_cam_bien(
     
     rows = result.fetchall()
     items = [
-        {
-            "ma_cam_bien": r.ma_cam_bien,
-            "ten_cam_bien": r.ten_cam_bien,
-            "mo_ta": r.mo_ta,
-            "ngay_lap_dat": r.ngay_lap_dat,
-            "thoi_gian_tao": r.thoi_gian_tao,
-            "ma_may_bom": r.ma_may_bom,
-            "ten_may_bom": r.ten_may_bom,
-            "trang_thai": r.trang_thai,
-            "loai": r.loai,
-            "ten_loai_cam_bien": r.ten_loai_cam_bien,
-        }
+        SensorOut(
+            ma_cam_bien=r.ma_cam_bien,
+            ten_cam_bien=r.ten_cam_bien,
+            mo_ta=r.mo_ta,
+            ngay_lap_dat=r.ngay_lap_dat,
+            thoi_gian_tao=r.thoi_gian_tao,
+            ma_may_bom=r.ma_may_bom,
+            ten_may_bom=r.ten_may_bom,
+            trang_thai=r.trang_thai,
+            loai=r.loai,
+            ten_loai_cam_bien=r.ten_loai_cam_bien,
+        )
         for r in rows
     ]
     return {"data": items, "limit": limit, "offset": offset, "total": len(items)}
@@ -90,28 +94,23 @@ async def get_cam_bien(
     if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép truy cập dữ liệu người khác")
     
-    return {
-        "ma_cam_bien": r.ma_cam_bien,
-        "ten_cam_bien": r.ten_cam_bien,
-        "mo_ta": r.mo_ta,
-        "ngay_lap_dat": r.ngay_lap_dat,
-        "ma_may_bom": r.ma_may_bom,
-        "ten_may_bom": r.ten_may_bom,
-        "trang_thai": r.trang_thai,
-        "loai": r.loai,
-        "ten_loai_cam_bien": r.ten_loai_cam_bien,
-    }
+    return SensorOut(
+        ma_cam_bien=r.ma_cam_bien,
+        ten_cam_bien=r.ten_cam_bien,
+        mo_ta=r.mo_ta,
+        ngay_lap_dat=r.ngay_lap_dat,
+        ma_may_bom=r.ma_may_bom,
+        ten_may_bom=r.ten_may_bom,
+        trang_thai=r.trang_thai,
+        loai=r.loai,
+        ten_loai_cam_bien=r.ten_loai_cam_bien,
+    )
 
 
 @router.put("/{ma_cam_bien}", status_code=200)
 async def update_cam_bien(
     ma_cam_bien: int,
-    ten_cam_bien: str = Body(..., embed=True),
-    mo_ta: Optional[str] = Body(None, embed=True),
-    ma_may_bom: int = Body(None, embed=True),
-    ngay_lap_dat: Optional[date] = Body(None, embed=True),
-    trang_thai: Optional[bool] = Body(None, embed=True),
-    loai: Optional[int] = Body(None, embed=True),
+    payload: SensorCreate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -127,7 +126,7 @@ async def update_cam_bien(
         text(
             "UPDATE cam_bien SET ten_cam_bien = :ten, mo_ta = :mo, ma_may_bom = :may, ngay_lap_dat = :ngay, trang_thai = :tt, loai = :loai, thoi_gian_cap_nhat = NOW() WHERE ma_cam_bien = :ma"
         ),
-        {"ten": ten_cam_bien, "mo": mo_ta, "may": ma_may_bom, "ngay": ngay_lap_dat, "tt": trang_thai, "loai": loai, "ma": ma_cam_bien},
+        {"ten": payload.ten_cam_bien, "mo": payload.mo_ta, "may": payload.ma_may_bom, "ngay": payload.ngay_lap_dat, "tt": payload.trang_thai if hasattr(payload, 'trang_thai') else None, "loai": payload.loai, "ma": ma_cam_bien},
     )
     await db.commit()
     return {"message": "Cập nhật cảm biến thành công", "ma_cam_bien": ma_cam_bien}

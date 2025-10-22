@@ -4,22 +4,20 @@ from fastapi import APIRouter, Depends, Body, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.api import deps
+from src.schemas.nhat_ky import NhatKyCreate, NhatKyOut
 
 router = APIRouter()
 
 
-@router.post("/nhat-ky-may-bom", status_code=201)
+@router.post("/nhat-ky-may-bom", status_code=201, response_model=NhatKyOut)
 async def create_nhat_ky(
-    ma_may_bom: int = Body(..., embed=True),
-    thoi_gian_bat: Optional[date] = Body(None, embed=True),
-    thoi_gian_tat: Optional[date] = Body(None, embed=True),
-    ghi_chu: Optional[str] = Body(None, embed=True),
+    payload: NhatKyCreate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
     """Tạo nhật ký cho máy bơm (chỉ chủ sở hữu)."""
     
-    r = await db.execute(text("SELECT ma_nguoi_dung FROM may_bom WHERE ma_may_bom = :ma"), {"ma": ma_may_bom})
+    r = await db.execute(text("SELECT ma_nguoi_dung FROM may_bom WHERE ma_may_bom = :ma"), {"ma": payload.ma_may_bom})
     pump = r.fetchone()
     
     if not pump:
@@ -31,15 +29,15 @@ async def create_nhat_ky(
         text(
             "INSERT INTO nhat_ky_may_bom(ma_may_bom, thoi_gian_bat, thoi_gian_tat, ghi_chu, thoi_gian_tao) VALUES(:ma, :bat, :tat, :ghi, NOW()) RETURNING ma_nhat_ky"
         ),
-        {"ma": ma_may_bom, "bat": thoi_gian_bat, "tat": thoi_gian_tat, "ghi": ghi_chu},
+        {"ma": payload.ma_may_bom, "bat": payload.thoi_gian_bat, "tat": payload.thoi_gian_tat, "ghi": payload.ghi_chu},
     )
     
     inserted = result.fetchone()
     await db.commit()
     
     ma = inserted.ma_nhat_ky if inserted else None
-    
-    return {"ma_nhat_ky": ma, "ma_may_bom": ma_may_bom}
+
+    return NhatKyOut(ma_nhat_ky=ma, ma_may_bom=payload.ma_may_bom, thoi_gian_bat=payload.thoi_gian_bat, thoi_gian_tat=payload.thoi_gian_tat, ghi_chu=payload.ghi_chu)
 
 
 @router.get("/nhat-ky-may-bom", status_code=200)
@@ -69,17 +67,10 @@ async def list_nhat_ky(
     
     rows = result.fetchall()
     items = [
-        {
-            "ma_nhat_ky": r.ma_nhat_ky,
-            "ma_may_bom": r.ma_may_bom,
-            "thoi_gian_bat": r.thoi_gian_bat,
-            "thoi_gian_tat": r.thoi_gian_tat,
-            "ghi_chu": r.ghi_chu,
-            "thoi_gian_tao": r.thoi_gian_tao,
-        }
+        NhatKyOut(ma_nhat_ky=r.ma_nhat_ky, ma_may_bom=r.ma_may_bom, thoi_gian_bat=r.thoi_gian_bat, thoi_gian_tat=r.thoi_gian_tat, ghi_chu=r.ghi_chu, thoi_gian_tao=r.thoi_gian_tao)
         for r in rows
     ]
-    
+
     return {"data": items, "limit": limit, "offset": offset, "total": len(items)}
 
 
@@ -104,23 +95,13 @@ async def get_nhat_ky(
     if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép truy cập nhật ký của người khác")
     
-    return {
-        "ma_nhat_ky": r.ma_nhat_ky,
-        "ma_may_bom": r.ma_may_bom,
-        "ten_may_bom": r.ten_may_bom,
-        "thoi_gian_bat": r.thoi_gian_bat,
-        "thoi_gian_tat": r.thoi_gian_tat,
-        "ghi_chu": r.ghi_chu,
-        "thoi_gian_tao": r.thoi_gian_tao,
-    }
+    return NhatKyOut(ma_nhat_ky=r.ma_nhat_ky, ma_may_bom=r.ma_may_bom, thoi_gian_bat=r.thoi_gian_bat, thoi_gian_tat=r.thoi_gian_tat, ghi_chu=r.ghi_chu, thoi_gian_tao=r.thoi_gian_tao)
 
 
 @router.put("/nhat-ky-may-bom/{ma_nhat_ky}", status_code=200)
 async def update_nhat_ky(
     ma_nhat_ky: int,
-    thoi_gian_bat: Optional[date] = Body(None, embed=True),
-    thoi_gian_tat: Optional[date] = Body(None, embed=True),
-    ghi_chu: Optional[str] = Body(None, embed=True),
+    payload: NhatKyCreate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -142,7 +123,7 @@ async def update_nhat_ky(
         text(
             "UPDATE nhat_ky_may_bom SET thoi_gian_bat = :bat, thoi_gian_tat = :tat, ghi_chu = :ghi, thoi_gian_cap_nhat = NOW() WHERE ma_nhat_ky = :ma"
         ),
-        {"bat": thoi_gian_bat, "tat": thoi_gian_tat, "ghi": ghi_chu, "ma": ma_nhat_ky},
+        {"bat": payload.thoi_gian_bat, "tat": payload.thoi_gian_tat, "ghi": payload.ghi_chu, "ma": ma_nhat_ky},
     )
     await db.commit()
     

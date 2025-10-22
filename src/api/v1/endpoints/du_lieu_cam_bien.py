@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Body, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.api import deps
+from src.schemas.data import DataOut, DataCreate
 
 router = APIRouter()
 
@@ -37,21 +38,21 @@ async def list_du_lieu(
     result = await db.execute(text(sql), params)
     rows = result.fetchall()
     items = [
-        {
-            "ma_du_lieu": str(r.ma_du_lieu) if isinstance(r.ma_du_lieu, uuid.UUID) else r.ma_du_lieu,
-            "ma_may_bom": r.ma_may_bom,
-            "ma_nguoi_dung": str(r.ma_nguoi_dung) if r.ma_nguoi_dung is not None else None,
-            "ngay": r.ngay,
-            "luu_luong_nuoc": r.luu_luong_nuoc,
-            "do_am_dat": r.do_am_dat,
-            "nhiet_do": r.nhiet_do,
-            "do_am": r.do_am,
-            "mua": r.mua,
-            "so_xung": r.so_xung,
-            "tong_the_tich": r.tong_the_tich,
-            "thoi_gian_tao": r.thoi_gian_tao,
-            "ghi_chu": r.ghi_chu,
-        }
+        DataOut(
+            ma_du_lieu=str(r.ma_du_lieu) if isinstance(r.ma_du_lieu, uuid.UUID) else r.ma_du_lieu,
+            ma_may_bom=r.ma_may_bom,
+            ma_nguoi_dung=str(r.ma_nguoi_dung) if r.ma_nguoi_dung is not None else None,
+            ngay=r.ngay,
+            luu_luong_nuoc=r.luu_luong_nuoc,
+            do_am_dat=r.do_am_dat,
+            nhiet_do=r.nhiet_do,
+            do_am=r.do_am,
+            mua=r.mua,
+            so_xung=r.so_xung,
+            tong_the_tich=r.tong_the_tich,
+            thoi_gian_tao=r.thoi_gian_tao,
+            ghi_chu=r.ghi_chu,
+        )
         for r in rows
     ]
     return {"data": items, "limit": limit, "offset": offset, "total": len(items)}
@@ -75,23 +76,23 @@ async def get_du_lieu_theo_ngay(
     
     result = await db.execute(text(sql), params)
     rows = result.fetchall()
-    
+
     items = [
-        {
-            "ma_du_lieu": str(r.ma_du_lieu) if isinstance(r.ma_du_lieu, uuid.UUID) else r.ma_du_lieu,
-            "ma_may_bom": r.ma_may_bom,
-            "ma_nguoi_dung": str(r.ma_nguoi_dung) if r.ma_nguoi_dung is not None else None,
-            "ngay": r.ngay,
-            "luu_luong_nuoc": r.luu_luong_nuoc,
-            "do_am_dat": r.do_am_dat,
-            "nhiet_do": r.nhiet_do,
-            "do_am": r.do_am,
-            "mua": r.mua,
-            "so_xung": r.so_xung,
-            "tong_the_tich": r.tong_the_tich,
-            "thoi_gian_tao": r.thoi_gian_tao,
-            "ghi_chu": r.ghi_chu,
-        }
+        DataOut(
+            ma_du_lieu=str(r.ma_du_lieu) if isinstance(r.ma_du_lieu, uuid.UUID) else r.ma_du_lieu,
+            ma_may_bom=r.ma_may_bom,
+            ma_nguoi_dung=str(r.ma_nguoi_dung) if r.ma_nguoi_dung is not None else None,
+            ngay=r.ngay,
+            luu_luong_nuoc=r.luu_luong_nuoc,
+            do_am_dat=r.do_am_dat,
+            nhiet_do=r.nhiet_do,
+            do_am=r.do_am,
+            mua=r.mua,
+            so_xung=r.so_xung,
+            tong_the_tich=r.tong_the_tich,
+            thoi_gian_tao=r.thoi_gian_tao,
+            ghi_chu=r.ghi_chu,
+        )
         for r in rows
     ]
     return {"data": items, "total": len(items)}
@@ -100,15 +101,7 @@ async def get_du_lieu_theo_ngay(
 @router.put("/{ma_du_lieu}", status_code=200)
 async def update_du_lieu(
     ma_du_lieu: uuid.UUID,
-    ngay: Optional[str] = Body(None, embed=True),
-    luu_luong_nuoc: Optional[float] = Body(None, embed=True),
-    do_am_dat: Optional[float] = Body(None, embed=True),
-    nhiet_do: Optional[float] = Body(None, embed=True),
-    do_am: Optional[float] = Body(None, embed=True),
-    mua: Optional[bool] = Body(None, embed=True),
-    so_xung: Optional[float] = Body(None, embed=True),
-    tong_the_tich: Optional[float] = Body(None, embed=True),
-    ghi_chu: Optional[str] = Body(None, embed=True),
+    payload: DataCreate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -127,24 +120,24 @@ async def update_du_lieu(
         raise HTTPException(status_code=403, detail="Không được phép chỉnh sửa dữ liệu của người khác")
 
     updates = {}
-    if ngay is not None:
-        updates["ngay"] = ngay
-    if luu_luong_nuoc is not None:
-        updates["luu_luong_nuoc"] = luu_luong_nuoc
-    if do_am_dat is not None:
-        updates["do_am_dat"] = do_am_dat
-    if nhiet_do is not None:
-        updates["nhiet_do"] = nhiet_do
-    if do_am is not None:
-        updates["do_am"] = do_am
-    if mua is not None:
-        updates["mua"] = mua
-    if so_xung is not None:
-        updates["so_xung"] = so_xung
-    if tong_the_tich is not None:
-        updates["tong_the_tich"] = tong_the_tich
-    if ghi_chu is not None:
-        updates["ghi_chu"] = ghi_chu
+    if getattr(payload, "ngay", None) is not None:
+        updates["ngay"] = payload.ngay
+    if getattr(payload, "luu_luong_nuoc", None) is not None:
+        updates["luu_luong_nuoc"] = payload.luu_luong_nuoc
+    if getattr(payload, "do_am_dat", None) is not None:
+        updates["do_am_dat"] = payload.do_am_dat
+    if getattr(payload, "nhiet_do", None) is not None:
+        updates["nhiet_do"] = payload.nhiet_do
+    if getattr(payload, "do_am", None) is not None:
+        updates["do_am"] = payload.do_am
+    if getattr(payload, "mua", None) is not None:
+        updates["mua"] = payload.mua
+    if getattr(payload, "so_xung", None) is not None:
+        updates["so_xung"] = payload.so_xung
+    if getattr(payload, "tong_the_tich", None) is not None:
+        updates["tong_the_tich"] = payload.tong_the_tich
+    if getattr(payload, "ghi_chu", None) is not None:
+        updates["ghi_chu"] = payload.ghi_chu
 
     if not updates:
         return {"message": "Không có trường nào để cập nhật"}

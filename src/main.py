@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from .core.config import settings
 from .api.v1.api import api_v1_router
+from .core.logging_config import setup_logging
+import logging
 
 
 app = FastAPI(
@@ -24,6 +27,13 @@ app.add_middleware(
     
     # Include API router
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+setup_logging()
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.getLogger("uvicorn.error").exception("Unhandled error: %s", exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
     
 @app.get("/")
 async def root():
