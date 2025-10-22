@@ -5,14 +5,18 @@ from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from pathlib import Path
-import shutil
+import aiofiles
+import os
 from src.api import deps
+from src.schemas.user import UserPublic, UserUpdate
 
 router = APIRouter()
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/jpg"}
 UPLOAD_DIR = Path("uploads/avatars")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", 4 * 1024 * 1024))
 
 @router.put("/{ten_dang_nhap}/anh-dai-dien", status_code=200)
 async def update_avatar_nguoi_dung(
@@ -49,13 +53,23 @@ async def update_avatar_nguoi_dung(
         if old_path.exists():
             old_path.unlink()
 
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail="File quá lớn. Kích thước tối đa là {} bytes".format(MAX_UPLOAD_SIZE))
+
     now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     ext = Path(file.filename).suffix
-    file_name = f"{now}_{ten_dang_nhap}{ext}"
+    safe_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", ten_dang_nhap)
+    file_name = f"{now}_{safe_name}{ext}"
     file_path = UPLOAD_DIR / file_name
 
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    async with aiofiles.open(file_path, "wb") as out_file:
+        await out_file.write(contents)
+
+    try:
+        await file.close()
+    except Exception:
+        pass
 
     await db.execute(
         text(
@@ -77,7 +91,7 @@ async def update_avatar_nguoi_dung(
     }
     
 # Lấy thông tin người dùng
-@router.get("/{ten_dang_nhap}", status_code=200)
+@router.get("/{ten_dang_nhap}", status_code=200, response_model=UserPublic)
 async def get_nguoi_dung(
     ten_dang_nhap: str,
     db: AsyncSession = Depends(deps.get_db_session),
@@ -101,24 +115,22 @@ async def get_nguoi_dung(
     if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
-    return {
-        "ma_nguoi_dung": nguoi_dung.ma_nguoi_dung,
-        "ho_ten": nguoi_dung.ho_ten,
-        "so_dien_thoai": nguoi_dung.so_dien_thoai,
-        "dia_chi": nguoi_dung.dia_chi,
-        "dang_nhap_lan_cuoi": nguoi_dung.dang_nhap_lan_cuoi,
-        "avatar": nguoi_dung.avatar,
-        "trang_thai": nguoi_dung.trang_thai,
-        "thoi_gian_tao": nguoi_dung.thoi_gian_tao,
-    }
+    return UserPublic(
+        ma_nguoi_dung=nguoi_dung.ma_nguoi_dung,
+        ho_ten=nguoi_dung.ho_ten,
+        so_dien_thoai=nguoi_dung.so_dien_thoai,
+        dia_chi=nguoi_dung.dia_chi,
+        dang_nhap_lan_cuoi=nguoi_dung.dang_nhap_lan_cuoi,
+        avatar=nguoi_dung.avatar,
+        trang_thai=nguoi_dung.trang_thai,
+        thoi_gian_tao=nguoi_dung.thoi_gian_tao,
+    )
     
 # Cập nhật thông tin người dùng
 @router.put("/{ten_dang_nhap}", status_code=200)
 async def update_nguoi_dung(
     ten_dang_nhap: str,
-    ho_ten: str = Body(...),
-    so_dien_thoai: str = Body(...),
-    dia_chi: str = Body(...),
+    payload: UserUpdate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -152,9 +164,9 @@ async def update_nguoi_dung(
         """
         ),
         {
-            "ho_ten": ho_ten,
-            "so_dien_thoai": so_dien_thoai,
-            "dia_chi": dia_chi,
+            "ho_ten": payload.ho_ten,
+            "so_dien_thoai": payload.so_dien_thoai,
+            "dia_chi": payload.dia_chi,
             "ma_nguoi_dung": nguoi_dung.ma_nguoi_dung,
         },
     )

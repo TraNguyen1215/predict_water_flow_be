@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.core.db import AsyncSessionLocal
+from src.core.db import get_db
 from src.core import security
 from sqlalchemy import text
 import uuid
@@ -9,15 +9,8 @@ import uuid
 security_scheme = HTTPBearer()
 
 
-async def get_db_session():
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+async def get_db_session(db: AsyncSession = Depends(get_db)) -> AsyncSession:
+    return db
 
 
 async def get_current_user(
@@ -34,7 +27,6 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
 
-    # Validate UUID format
     try:
         user_uuid = uuid.UUID(str(user_id))
     except Exception:

@@ -7,6 +7,7 @@ from sqlalchemy import text
 from src.api import deps
 from src.core import security
 from src.core.config import settings
+from src.schemas.user import TokenResponse
 
 router = APIRouter()
 
@@ -35,8 +36,6 @@ async def register_nguoi_dung(
     if exists:
         raise HTTPException(status_code=400, detail="Tên đăng nhập đã tồn tại")
 
-
-    # Create salted hash and store both hash and salt in DB
     mat_khau_hash, salt = security.get_password_hash_and_salt(mat_khau)
 
     await db.execute(
@@ -59,7 +58,7 @@ async def register_nguoi_dung(
 
 
 # đăng nhập người dùng
-@router.post("/dang-nhap", status_code=200)
+@router.post("/dang-nhap", status_code=200, response_model=TokenResponse)
 async def dang_nhap_nguoi_dung(
     ten_dang_nhap: str = Body(..., embed=True),
     mat_khau: str = Body(..., embed=True),

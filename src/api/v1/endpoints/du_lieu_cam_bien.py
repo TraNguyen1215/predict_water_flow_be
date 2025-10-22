@@ -1,3 +1,4 @@
+from datetime import date
 import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, Body, Query, HTTPException
@@ -57,7 +58,7 @@ async def list_du_lieu(
 
 @router.get("/ngay/{ngay}", status_code=200)
 async def get_du_lieu_theo_ngay(
-    ngay: str,
+    ngay: date,
     ma_may_bom: int = Query(None),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
