@@ -8,7 +8,6 @@ class NhatKyCreate(BaseModel):
     thoi_gian_bat: Optional[datetime]
     thoi_gian_tat: Optional[datetime]
     ghi_chu: Optional[str]
-    thoi_gian_tao: Optional[datetime] = datetime.now()
 
 
 class NhatKyOut(BaseModel):

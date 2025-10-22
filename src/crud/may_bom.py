@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from src.schemas.pump import PumpCreate
 from typing import Optional
 from src.models.may_bom import MayBom
@@ -33,7 +33,10 @@ async def get_may_bom_by_id(db: AsyncSession, ma_may_bom: int):
     return res.scalars().first()
 
 async def get_may_bom_by_name_and_user(db: AsyncSession, ten_may_bom: str, ma_nguoi_dung: uuid.UUID):
-    q = select(MayBom).where((MayBom.ten_may_bom).lower().strip() == ten_may_bom.lower().strip(), MayBom.ma_nguoi_dung == ma_nguoi_dung)
+    q = select(MayBom).where(
+        func.lower(func.trim(MayBom.ten_may_bom)) == ten_may_bom.lower().strip(),
+        MayBom.ma_nguoi_dung == ma_nguoi_dung,
+    )
     res = await db.execute(q)
     return res.scalars().first()
 

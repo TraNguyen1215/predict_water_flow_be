@@ -19,7 +19,7 @@ async def get_by_id(db: AsyncSession, ma_nguoi_dung: UUID) -> Optional[NguoiDung
 
 
 async def create_user(db: AsyncSession, ten_dang_nhap: str, mat_khau_hash: str, salt: str, ho_ten: Optional[str] = None) -> NguoiDung:
-    user = NguoiDung(ten_dang_nhap=ten_dang_nhap, mat_khau_hash=mat_khau_hash, salt=salt, ho_ten=ho_ten, so_dien_thoai=ten_dang_nhap, thoi_gian_tao=func.now())
+    user = NguoiDung(ten_dang_nhap=ten_dang_nhap, mat_khau_hash=mat_khau_hash, salt=salt, ho_ten=ho_ten, so_dien_thoai=ten_dang_nhap)
     db.add(user)
     await db.flush()
     return user

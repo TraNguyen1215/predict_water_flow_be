@@ -21,7 +21,6 @@ async def create_nhat_ky(db: AsyncSession, payload: NhatKyCreate) -> NhatKyMayBo
         thoi_gian_bat=_to_naive_utc(payload.thoi_gian_bat),
         thoi_gian_tat=_to_naive_utc(payload.thoi_gian_tat),
         ghi_chu=payload.ghi_chu,
-        thoi_gian_tao=_to_naive_utc(payload.thoi_gian_tao),
     )
     db.add(obj)
     await db.flush()

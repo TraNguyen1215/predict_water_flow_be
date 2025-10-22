@@ -12,7 +12,6 @@ class UserPublic(BaseModel):
     avatar: Optional[str] = None
     trang_thai: Optional[bool] = None
     dang_nhap_lan_cuoi: Optional[datetime] = None
-    thoi_gian_tao: Optional[datetime] = datetime.now()
 
 
 class UserUpdate(BaseModel):
