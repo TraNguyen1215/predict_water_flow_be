@@ -15,9 +15,53 @@ async def create_cam_bien(db: AsyncSession, ma_nd, payload: SensorCreate) -> Cam
 
 
 async def list_cam_bien_for_user(db: AsyncSession, ma_nd, limit: int, offset: int):
-    q = select(CamBien).where(CamBien.ma_nguoi_dung == ma_nd).order_by(CamBien.thoi_gian_tao.desc()).limit(limit).offset(offset)
+    q = (
+        select(
+            CamBien.ma_cam_bien.label("ma_cam_bien"),
+            CamBien.ten_cam_bien.label("ten_cam_bien"),
+            CamBien.mo_ta.label("mo_ta"),
+            CamBien.ngay_lap_dat.label("ngay_lap_dat"),
+            CamBien.thoi_gian_tao.label("thoi_gian_tao"),
+            CamBien.ma_may_bom.label("ma_may_bom"),
+            MayBom.ten_may_bom.label("ten_may_bom"),
+            CamBien.trang_thai.label("trang_thai"),
+            CamBien.loai.label("loai"),
+            LoaiCamBien.ten_loai_cam_bien.label("ten_loai_cam_bien"),
+        )
+        .join(MayBom, CamBien.ma_may_bom == MayBom.ma_may_bom, isouter=True)
+        .join(LoaiCamBien, CamBien.loai == LoaiCamBien.ma_loai_cam_bien)
+        .where(CamBien.ma_nguoi_dung == ma_nd)
+        .order_by(CamBien.thoi_gian_tao.desc())
+        .limit(limit)
+        .offset(offset)
+    )
     res = await db.execute(q)
-    return res.scalars().all()
+        # return mapping rows so callers can access joined columns by name
+    return res.mappings().all()
+
+
+async def get_cam_bien_with_names_by_id(db: AsyncSession, ma_cam_bien: int):
+    """Return a single row (labeled) with pump and type names for endpoints that need them."""
+    q = (
+        select(
+            CamBien.ma_cam_bien.label("ma_cam_bien"),
+            CamBien.ten_cam_bien.label("ten_cam_bien"),
+            CamBien.ma_nguoi_dung.label("ma_nguoi_dung"),
+            CamBien.mo_ta.label("mo_ta"),
+            CamBien.ngay_lap_dat.label("ngay_lap_dat"),
+            CamBien.thoi_gian_tao.label("thoi_gian_tao"),
+            CamBien.ma_may_bom.label("ma_may_bom"),
+            MayBom.ten_may_bom.label("ten_may_bom"),
+            CamBien.trang_thai.label("trang_thai"),
+            CamBien.loai.label("loai"),
+            LoaiCamBien.ten_loai_cam_bien.label("ten_loai_cam_bien"),
+        )
+        .join(MayBom, CamBien.ma_may_bom == MayBom.ma_may_bom, isouter=True)
+        .join(LoaiCamBien, CamBien.loai == LoaiCamBien.ma_loai_cam_bien)
+        .where(CamBien.ma_cam_bien == ma_cam_bien)
+    )
+    res = await db.execute(q)
+    return res.mappings().first()
 
 
 async def get_cam_bien_by_id(db: AsyncSession, ma_cam_bien: int):

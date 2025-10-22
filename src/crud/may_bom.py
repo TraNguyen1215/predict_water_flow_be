@@ -1,8 +1,10 @@
+import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.schemas.pump import PumpCreate
 from typing import Optional
 from src.models.may_bom import MayBom
+from src.models.nguoi_dung import NguoiDung
 
 
 async def create_may_bom(db: AsyncSession, ma_nd, payload: PumpCreate) -> MayBom:
@@ -24,7 +26,15 @@ async def get_may_bom_by_id(db: AsyncSession, ma_may_bom: int):
     return res.scalars().first()
 
 
-async def update_may_bom(db: AsyncSession, ma_may_bom: int, payload: PumpCreate):
+async def update_may_bom(db: AsyncSession, ma_may_bom: int, payload: PumpCreate, m_nd: uuid.UUID):
+    q = await db.execute(select(NguoiDung).where(NguoiDung.ma_nguoi_dung == m_nd))
+    nd = q.scalars().first()
+    
+    if not nd or nd.loai_nguoi_dung != 1:
+        return None
+    
+    
+    
     obj = await get_may_bom_by_id(db, ma_may_bom)
     if not obj:
         return None

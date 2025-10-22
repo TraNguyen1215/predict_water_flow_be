@@ -41,7 +41,7 @@ async def get_loai_cam_bien_theo_ma(
 
 # Thêm loại cảm biến mới
 @router.post("/", status_code=201)
-async def create_loai_cam_bien(
+async def create_loai_cam_bien_endpoint(
     payload: LoaiCamBienCreate,
     db: AsyncSession = Depends(deps.get_db_session),
 ):
@@ -55,7 +55,7 @@ async def create_loai_cam_bien(
 
 # Cập nhật loại cảm biến
 @router.put("/{ma_loai_cam_bien}", status_code=200)
-async def update_loai_cam_bien(
+async def update_loai_cam_bien_endpoint(
     ma_loai_cam_bien: int,
     payload: LoaiCamBienCreate,
     db: AsyncSession = Depends(deps.get_db_session),
@@ -77,7 +77,7 @@ async def update_loai_cam_bien(
 
 # Xoá loại cảm biến
 @router.delete("/{ma_loai_cam_bien}", status_code=200)
-async def delete_loai_cam_bien(
+async def delete_loai_cam_bien_endpoint(
     ma_loai_cam_bien: int,
     db: AsyncSession = Depends(deps.get_db_session),
 ):

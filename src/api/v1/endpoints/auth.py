@@ -114,24 +114,9 @@ async def verify_quen_mat_khau(
     db: AsyncSession = Depends(deps.get_db_session),
 ):
     """Xác minh thông tin người dùng quên mật khẩu."""
-    result = await db.execute(
-        text(
-            """
-            SELECT nd.ma_nguoi_dung
-            FROM nguoi_dung nd
-            JOIN may_bom mb ON nd.ma_nguoi_dung = mb.ma_nguoi_dung
-            JOIN nhat_ky_may_bom nk ON nk.ma_may_bom = mb.ma_may_bom
-            WHERE nd.ten_dang_nhap = :ten_dang_nhap
-                AND mb.ten_may_bom = :ten_may_bom
-                AND nk.ngay = :ngay_tuoi_gan_nhat
-            ORDER BY nk.thoi_gian_tao DESC
-            LIMIT 1
-        """
-        ),
-        {"ten_dang_nhap": ten_dang_nhap, "ten_may_bom": ten_may_bom, "ngay_tuoi_gan_nhat": ngay_tuoi_gan_nhat},
-    )
+    from src.crud.nguoi_dung import verify_user_by_pump_and_date
 
-    nguoi_dung = result.fetchone()
+    nguoi_dung = await verify_user_by_pump_and_date(db, ten_dang_nhap, ten_may_bom, ngay_tuoi_gan_nhat)
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng hoặc máy bơm hợp lệ")
 

@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/nhat-ky-may-bom", status_code=201, response_model=NhatKyOut)
-async def create_nhat_ky(
+async def create_nhat_ky_endpoint(
     payload: NhatKyCreate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
@@ -25,13 +25,20 @@ async def create_nhat_ky(
     if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép tạo nhật ký cho máy bơm này")
 
-    ma = await create_nhat_ky(db, payload)
+    obj = await create_nhat_ky(db, payload)
     await db.commit()
-    return NhatKyOut(ma_nhat_ky=ma, ma_may_bom=payload.ma_may_bom, thoi_gian_bat=payload.thoi_gian_bat, thoi_gian_tat=payload.thoi_gian_tat, ghi_chu=payload.ghi_chu)
+    return NhatKyOut(
+        ma_nhat_ky=getattr(obj, "ma_nhat_ky"), # getattr(obj, "ma_nhat_ky", None),: là để tránh lỗi nếu obj không có thuộc tính ma_nhat_ky
+        ma_may_bom=getattr(obj, "ma_may_bom", None),
+        thoi_gian_bat=getattr(obj, "thoi_gian_bat", None),
+        thoi_gian_tat=getattr(obj, "thoi_gian_tat", None),
+        ghi_chu=getattr(obj, "ghi_chu", None),
+        thoi_gian_tao=getattr(obj, "thoi_gian_tao"),
+    )
 
 
 @router.get("/nhat-ky-may-bom", status_code=200)
-async def list_nhat_ky(
+async def list_nhat_ky_endpoint(
     ma_may_bom: int = Query(...),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -56,7 +63,7 @@ async def list_nhat_ky(
 
 
 @router.get("/nhat-ky-may-bom/{ma_nhat_ky}", status_code=200)
-async def get_nhat_ky(
+async def get_nhat_ky_endpoint(
     ma_nhat_ky: int,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
@@ -66,14 +73,17 @@ async def get_nhat_ky(
     r = await get_nhat_ky_by_id(db, ma_nhat_ky)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy nhật ký")
-    if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    pump = await get_may_bom_by_id(db, r.ma_may_bom)
+    if not pump:
+        raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm liên quan")
+    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép truy cập nhật ký của người khác")
-    
+
     return NhatKyOut(ma_nhat_ky=r.ma_nhat_ky, ma_may_bom=r.ma_may_bom, thoi_gian_bat=r.thoi_gian_bat, thoi_gian_tat=r.thoi_gian_tat, ghi_chu=r.ghi_chu, thoi_gian_tao=r.thoi_gian_tao)
 
 
 @router.put("/nhat-ky-may-bom/{ma_nhat_ky}", status_code=200)
-async def update_nhat_ky(
+async def update_nhat_ky_endpoint(
     ma_nhat_ky: int,
     payload: NhatKyCreate,
     db: AsyncSession = Depends(deps.get_db_session),
@@ -84,7 +94,10 @@ async def update_nhat_ky(
     r = await get_nhat_ky_by_id(db, ma_nhat_ky)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy nhật ký")
-    if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    pump = await get_may_bom_by_id(db, r.ma_may_bom)
+    if not pump:
+        raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm liên quan")
+    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép chỉnh sửa nhật ký của người khác")
 
     await update_nhat_ky(db, ma_nhat_ky, payload)
@@ -94,7 +107,7 @@ async def update_nhat_ky(
 
 
 @router.delete("/nhat-ky-may-bom/{ma_nhat_ky}", status_code=200)
-async def delete_nhat_ky(
+async def delete_nhat_ky_endpoint(
     ma_nhat_ky: int,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
@@ -102,10 +115,13 @@ async def delete_nhat_ky(
     """Xoá nhật ký (chỉ chủ sở hữu)."""
     
     r = await get_nhat_ky_by_id(db, ma_nhat_ky)
-    
+
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy nhật ký")
-    if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    pump = await get_may_bom_by_id(db, r.ma_may_bom)
+    if not pump:
+        raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm liên quan")
+    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép xoá nhật ký của người khác")
 
     await delete_nhat_ky(db, ma_nhat_ky)

@@ -6,7 +6,7 @@ from src.models.nhat_ky_may_bom import NhatKyMayBom
 
 
 async def create_nhat_ky(db: AsyncSession, payload: NhatKyCreate) -> NhatKyMayBom:
-    obj = NhatKyMayBom(ma_may_bom=payload.ma_may_bom, thoi_gian_bat=payload.thoi_gian_bat, thoi_gian_tat=payload.thoi_gian_tat, ghi_chu=payload.ghi_chu)
+    obj = NhatKyMayBom(ma_may_bom=payload.ma_may_bom, thoi_gian_bat=payload.thoi_gian_bat, thoi_gian_tat=payload.thoi_gian_tat, ghi_chu=payload.ghi_chu, thoi_gian_tao=payload.thoi_gian_tao)
     db.add(obj)
     await db.flush()
     return obj
