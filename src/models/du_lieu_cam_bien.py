@@ -9,7 +9,7 @@ from .base import Base
 class DuLieuCamBien(Base):
     __tablename__ = "du_lieu_cam_bien"
 
-    ma_du_lieu = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ma_du_lieu = Column(Integer, primary_key=True, )
     ma_may_bom = Column(Integer, ForeignKey("may_bom.ma_may_bom"))
     ma_nguoi_dung = Column(UUID(as_uuid=True), ForeignKey("nguoi_dung.ma_nguoi_dung"))
     ngay = Column(Date)

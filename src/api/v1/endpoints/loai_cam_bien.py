@@ -1,5 +1,6 @@
 import datetime
 import re
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 import math
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,12 +18,16 @@ router = APIRouter()
 async def get_loai_cam_bien(
     limit: int = Query(15, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),
 ):
     """
     Lấy danh sách loại cảm biến.
 
     """
+
+    if page is not None:
+        offset = (page - 1) * limit
 
     rows, total = await list_loai_cam_bien(db, limit=limit, offset=offset)
     data = [LoaiCamBienOut(ma_loai_cam_bien=row.ma_loai_cam_bien, ten_loai_cam_bien=row.ten_loai_cam_bien, thoi_gian_tao=row.thoi_gian_tao, thoi_gian_cap_nhat=row.thoi_gian_cap_nhat) for row in rows]

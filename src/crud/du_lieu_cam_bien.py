@@ -32,13 +32,29 @@ async def list_du_lieu_by_day(db: AsyncSession, ma_nd, ngay, ma_may_bom: Optiona
     return res.scalars().all()
 
 
-async def get_du_lieu_by_id(db: AsyncSession, ma_du_lieu: uuid.UUID) -> Optional[DuLieuCamBien]:
+async def list_du_lieu_by_day_paginated(db: AsyncSession, ma_nd, ngay, ma_may_bom: Optional[int], limit: int, offset: int) -> Tuple[List[DuLieuCamBien], int]:
+    q = select(DuLieuCamBien).join(MayBom, DuLieuCamBien.ma_may_bom == MayBom.ma_may_bom).where(MayBom.ma_nguoi_dung == ma_nd, DuLieuCamBien.ngay == ngay)
+    if ma_may_bom:
+        q = q.where(DuLieuCamBien.ma_may_bom == ma_may_bom)
+    q = q.order_by(DuLieuCamBien.thoi_gian_tao.desc()).limit(limit).offset(offset)
+    res = await db.execute(q)
+    items = res.scalars().all()
+
+    count_q = select(func.count()).select_from(DuLieuCamBien).join(MayBom, DuLieuCamBien.ma_may_bom == MayBom.ma_may_bom).where(MayBom.ma_nguoi_dung == ma_nd, DuLieuCamBien.ngay == ngay)
+    if ma_may_bom:
+        count_q = count_q.where(DuLieuCamBien.ma_may_bom == ma_may_bom)
+    count_res = await db.execute(count_q)
+    total = int(count_res.scalar_one())
+    return items, total
+
+
+async def get_du_lieu_by_id(db: AsyncSession, ma_du_lieu: int) -> Optional[DuLieuCamBien]:
     q = select(DuLieuCamBien).where(DuLieuCamBien.ma_du_lieu == ma_du_lieu)
     res = await db.execute(q)
     return res.scalars().first()
 
 
-async def update_du_lieu(db: AsyncSession, ma_du_lieu: uuid.UUID, updates: dict) -> Optional[DuLieuCamBien]:
+async def update_du_lieu(db: AsyncSession, ma_du_lieu: int, updates: dict) -> Optional[DuLieuCamBien]:
     obj = await get_du_lieu_by_id(db, ma_du_lieu)
     if not obj:
         return None

@@ -18,7 +18,7 @@ class DataCreate(BaseModel):
 
 
 class DataOut(BaseModel):
-    ma_du_lieu: UUID
+    ma_du_lieu: int
     ma_may_bom: int
     ma_nguoi_dung: Optional[UUID]
     ngay: date

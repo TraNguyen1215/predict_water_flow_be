@@ -53,10 +53,14 @@ async def create_cam_bien_endpoint(
 async def list_cam_bien_endpoint(
     limit: int = Query(15, ge=1),
     offset: int = Query(0, ge=0),
+    page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
     """Danh sách cảm biến."""
+    if page is not None:
+        offset = (page - 1) * limit
+
     rows, total = await list_cam_bien_for_user(db, current_user.ma_nguoi_dung, limit, offset)
     items = [
         SensorOut(

@@ -7,7 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.api import deps
 from src.schemas.data import DataOut, DataCreate
-from src.crud.du_lieu_cam_bien import list_du_lieu_for_user, list_du_lieu_by_day, get_du_lieu_by_id, update_du_lieu
+from src.crud.du_lieu_cam_bien import (
+    list_du_lieu_for_user,
+    list_du_lieu_by_day,
+    list_du_lieu_by_day_paginated,
+    get_du_lieu_by_id,
+    update_du_lieu,
+)
 from src.crud.may_bom import get_may_bom_by_id
 
 router = APIRouter()
@@ -18,6 +24,7 @@ async def list_du_lieu(
     ma_may_bom: Optional[int] = Query(None),
     limit: int = Query(15, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -29,10 +36,13 @@ async def list_du_lieu(
         if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
             raise HTTPException(status_code=403, detail="Không được phép truy cập dữ liệu của máy bơm này")
 
+    if page is not None:
+        offset = (page - 1) * limit
+
     rows, total = await list_du_lieu_for_user(db, current_user.ma_nguoi_dung, ma_may_bom, limit, offset)
     items = [
         DataOut(
-            ma_du_lieu=str(r.ma_du_lieu) if isinstance(r.ma_du_lieu, uuid.UUID) else r.ma_du_lieu,
+            ma_du_lieu=r.ma_du_lieu,
             ma_may_bom=r.ma_may_bom,
             ma_nguoi_dung=str(r.ma_nguoi_dung) if r.ma_nguoi_dung is not None else None,
             ngay=r.ngay,
@@ -58,6 +68,7 @@ async def get_du_lieu_theo_ngay(
     ma_may_bom: int = Query(None),
     limit: int = Query(None, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -73,7 +84,7 @@ async def get_du_lieu_theo_ngay(
         rows = await list_du_lieu_by_day(db, current_user.ma_nguoi_dung, ngay, ma_may_bom)
         items = [
             DataOut(
-                ma_du_lieu=str(r.ma_du_lieu) if isinstance(r.ma_du_lieu, uuid.UUID) else r.ma_du_lieu,
+                ma_du_lieu=r.ma_du_lieu,
                 ma_may_bom=r.ma_may_bom,
                 ma_nguoi_dung=str(r.ma_nguoi_dung) if r.ma_nguoi_dung is not None else None,
                 ngay=r.ngay,
@@ -91,10 +102,12 @@ async def get_du_lieu_theo_ngay(
         ]
         return {"data": items, "total": len(items)}
     else:
-        rows, total = await list_du_lieu_for_user(db, current_user.ma_nguoi_dung, ma_may_bom, limit, offset)
+        if page is not None:
+            offset = (page - 1) * limit
+        rows, total = await list_du_lieu_by_day_paginated(db, current_user.ma_nguoi_dung, ngay, ma_may_bom, limit, offset)
         items = [
             DataOut(
-                ma_du_lieu=str(r.ma_du_lieu) if isinstance(r.ma_du_lieu, uuid.UUID) else r.ma_du_lieu,
+                ma_du_lieu=r.ma_du_lieu,
                 ma_may_bom=r.ma_may_bom,
                 ma_nguoi_dung=str(r.ma_nguoi_dung) if r.ma_nguoi_dung is not None else None,
                 ngay=r.ngay,
@@ -117,7 +130,7 @@ async def get_du_lieu_theo_ngay(
 
 @router.put("/{ma_du_lieu}", status_code=200)
 async def update_du_lieu(
-    ma_du_lieu: uuid.UUID,
+    ma_du_lieu: int,
     payload: DataCreate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),

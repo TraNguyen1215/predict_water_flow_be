@@ -39,10 +39,14 @@ async def create_may_bom_endpoint(
 async def list_may_bom_endpoint(
     limit: int = Query(15, ge=1),
     offset: int = Query(0, ge=0),
+    page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
     """Danh sách máy bơm"""
+    if page is not None:
+        offset = (page - 1) * limit
+
     rows, total = await list_may_bom_for_user(db, current_user.ma_nguoi_dung, limit, offset)
     items = [
         PumpOut(
