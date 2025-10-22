@@ -12,7 +12,7 @@ from src.crud.may_bom import get_may_bom_by_id
 router = APIRouter()
 
 
-@router.post("/nhat-ky-may-bom", status_code=201, response_model=NhatKyOut)
+@router.post("/", status_code=201, response_model=NhatKyOut)
 async def create_nhat_ky_endpoint(
     payload: NhatKyCreate,
     db: AsyncSession = Depends(deps.get_db_session),
@@ -38,7 +38,7 @@ async def create_nhat_ky_endpoint(
     )
 
 
-@router.get("/nhat-ky-may-bom", status_code=200)
+@router.get("/", status_code=200)
 async def list_nhat_ky_endpoint(
     ma_may_bom: int = Query(...),
     limit: int = Query(15, ge=1, le=500),
@@ -65,7 +65,7 @@ async def list_nhat_ky_endpoint(
     return {"data": items, "limit": limit, "offset": offset, "page": page, "total_pages": total_pages, "total": total}
 
 
-@router.get("/nhat-ky-may-bom/{ma_nhat_ky}", status_code=200)
+@router.get("/{ma_nhat_ky}", status_code=200)
 async def get_nhat_ky_endpoint(
     ma_nhat_ky: int,
     db: AsyncSession = Depends(deps.get_db_session),
@@ -85,7 +85,7 @@ async def get_nhat_ky_endpoint(
     return NhatKyOut(ma_nhat_ky=r.ma_nhat_ky, ma_may_bom=r.ma_may_bom, thoi_gian_bat=r.thoi_gian_bat, thoi_gian_tat=r.thoi_gian_tat, ghi_chu=r.ghi_chu, thoi_gian_tao=r.thoi_gian_tao)
 
 
-@router.put("/nhat-ky-may-bom/{ma_nhat_ky}", status_code=200)
+@router.put("/{ma_nhat_ky}", status_code=200)
 async def update_nhat_ky_endpoint(
     ma_nhat_ky: int,
     payload: NhatKyCreate,
@@ -109,7 +109,7 @@ async def update_nhat_ky_endpoint(
     return {"message": "Cập nhật nhật ký thành công", "ma_nhat_ky": ma_nhat_ky}
 
 
-@router.delete("/nhat-ky-may-bom/{ma_nhat_ky}", status_code=200)
+@router.delete("/{ma_nhat_ky}", status_code=200)
 async def delete_nhat_ky_endpoint(
     ma_nhat_ky: int,
     db: AsyncSession = Depends(deps.get_db_session),
