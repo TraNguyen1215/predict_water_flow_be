@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from src.schemas.nhat_ky import NhatKyCreate
 from typing import Optional
 from src.models.nhat_ky_may_bom import NhatKyMayBom
@@ -30,7 +30,12 @@ async def create_nhat_ky(db: AsyncSession, payload: NhatKyCreate) -> NhatKyMayBo
 async def list_nhat_ky_for_pump(db: AsyncSession, ma_may_bom: int, limit: int, offset: int):
     q = select(NhatKyMayBom).where(NhatKyMayBom.ma_may_bom == ma_may_bom).order_by(NhatKyMayBom.thoi_gian_tao.desc()).limit(limit).offset(offset)
     res = await db.execute(q)
-    return res.scalars().all()
+    items = res.scalars().all()
+
+    count_q = select(func.count()).select_from(NhatKyMayBom).where(NhatKyMayBom.ma_may_bom == ma_may_bom)
+    count_res = await db.execute(count_q)
+    total = int(count_res.scalar_one())
+    return items, total
 
 
 async def get_nhat_ky_by_id(db: AsyncSession, ma_nhat_ky: int):

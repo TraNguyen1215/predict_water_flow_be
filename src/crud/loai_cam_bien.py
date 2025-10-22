@@ -5,10 +5,15 @@ from typing import Optional
 from src.models.loai_cam_bien import LoaiCamBien
 
 
-async def list_loai_cam_bien(db: AsyncSession):
-    q = select(LoaiCamBien).order_by(LoaiCamBien.ma_loai_cam_bien)
+async def list_loai_cam_bien(db: AsyncSession, limit: int = 100, offset: int = 0):
+    q = select(LoaiCamBien).order_by(LoaiCamBien.ma_loai_cam_bien).limit(limit).offset(offset)
     res = await db.execute(q)
-    return res.scalars().all()
+    items = res.scalars().all()
+
+    count_q = select(func.count()).select_from(LoaiCamBien)
+    count_res = await db.execute(count_q)
+    total = int(count_res.scalar_one())
+    return items, total
 
 
 async def get_loai_cam_bien_by_id(db: AsyncSession, ma_loai_cam_bien: int):

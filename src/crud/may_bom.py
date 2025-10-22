@@ -24,7 +24,12 @@ async def create_may_bom(db: AsyncSession, ma_nd: uuid.UUID, payload: PumpCreate
 async def list_may_bom_for_user(db: AsyncSession, ma_nd, limit: int, offset: int):
     q = select(MayBom).where(MayBom.ma_nguoi_dung == ma_nd).order_by(MayBom.thoi_gian_tao.desc()).limit(limit).offset(offset)
     res = await db.execute(q)
-    return res.scalars().all()
+    items = res.scalars().all()
+
+    count_q = select(func.count()).select_from(MayBom).where(MayBom.ma_nguoi_dung == ma_nd)
+    count_res = await db.execute(count_q)
+    total = int(count_res.scalar_one())
+    return items, total
 
 
 async def get_may_bom_by_id(db: AsyncSession, ma_may_bom: int):

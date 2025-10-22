@@ -1,6 +1,7 @@
 from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
+import math
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import List
@@ -11,25 +12,17 @@ from src.models.cam_bien import CamBien
 
 
 def _extract(row, key):
-    """Safely extract a value from a mapping, Row, or ORM instance.
-
-    Returns a primitive (int/str/datetime) when possible. If the value
-    is an ORM object (like a CamBien), try to return its scalar id attribute.
-    """
-    # mapping-like (dict or RowMapping)
     try:
         if hasattr(row, "get"):
             val = row.get(key)
         else:
             val = getattr(row, key)
     except Exception:
-        # fallback to indexing
         try:
             val = row[key]
         except Exception:
             val = None
 
-    # if value is an ORM instance, try to extract scalar id attribute
     if isinstance(val, CamBien):
         return getattr(val, "ma_cam_bien", None)
     return val
@@ -58,13 +51,13 @@ async def create_cam_bien_endpoint(
 
 @router.get("/", status_code=200)
 async def list_cam_bien_endpoint(
-    limit: int = Query(50, ge=1),
+    limit: int = Query(15, ge=1),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
     """Danh sách cảm biến."""
-    rows = await list_cam_bien_for_user(db, current_user.ma_nguoi_dung, limit, offset)
+    rows, total = await list_cam_bien_for_user(db, current_user.ma_nguoi_dung, limit, offset)
     items = [
         SensorOut(
             ma_cam_bien=_extract(r, "ma_cam_bien"),
@@ -80,7 +73,9 @@ async def list_cam_bien_endpoint(
         )
         for r in rows
     ]
-    return {"data": items, "limit": limit, "offset": offset, "total": len(items)}
+    page = (offset // limit) + 1 if limit > 0 else 1
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    return {"data": items, "limit": limit, "offset": offset, "page": page, "total_pages": total_pages, "total": total}
 
 
 @router.get("/{ma_cam_bien}", status_code=200)

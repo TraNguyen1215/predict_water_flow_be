@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from typing import List, Optional
 from src.schemas.sensor import SensorCreate
 from src.models.cam_bien import CamBien
@@ -36,8 +36,12 @@ async def list_cam_bien_for_user(db: AsyncSession, ma_nd, limit: int, offset: in
         .offset(offset)
     )
     res = await db.execute(q)
-        # return mapping rows so callers can access joined columns by name
-    return res.mappings().all()
+    items = res.mappings().all()
+
+    count_q = select(func.count()).select_from(CamBien).where(CamBien.ma_nguoi_dung == ma_nd)
+    count_res = await db.execute(count_q)
+    total = int(count_res.scalar_one())
+    return items, total
 
 
 async def get_cam_bien_with_names_by_id(db: AsyncSession, ma_cam_bien: int):

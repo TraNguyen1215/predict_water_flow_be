@@ -1,6 +1,7 @@
 import datetime
 import re
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
+import math
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from pathlib import Path
@@ -14,14 +15,20 @@ router = APIRouter()
 # Lấy thông tin loại cảm biến
 @router.get("/", status_code=200)
 async def get_loai_cam_bien(
+    limit: int = Query(15, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(deps.get_db_session),
 ):
     """
     Lấy danh sách loại cảm biến.
+
     """
 
-    rows = await list_loai_cam_bien(db)
-    return {"data": [LoaiCamBienOut(ma_loai_cam_bien=row.ma_loai_cam_bien, ten_loai_cam_bien=row.ten_loai_cam_bien, thoi_gian_tao=row.thoi_gian_tao, thoi_gian_cap_nhat=row.thoi_gian_cap_nhat) for row in rows]}
+    rows, total = await list_loai_cam_bien(db, limit=limit, offset=offset)
+    data = [LoaiCamBienOut(ma_loai_cam_bien=row.ma_loai_cam_bien, ten_loai_cam_bien=row.ten_loai_cam_bien, thoi_gian_tao=row.thoi_gian_tao, thoi_gian_cap_nhat=row.thoi_gian_cap_nhat) for row in rows]
+    page = (offset // limit) + 1 if limit > 0 else 1
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    return {"data": data, "limit": limit, "offset": offset, "page": page, "total_pages": total_pages, "total": total}
 
 
 # Lấy thông tin loại cảm biến theo mã

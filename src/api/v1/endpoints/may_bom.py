@@ -1,5 +1,6 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Body, Query, HTTPException
+import math
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.api import deps
@@ -36,13 +37,13 @@ async def create_may_bom_endpoint(
 
 @router.get("/", status_code=200)
 async def list_may_bom_endpoint(
-    limit: int = Query(50, ge=1),
+    limit: int = Query(15, ge=1),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
     """Danh sách máy bơm"""
-    rows = await list_may_bom_for_user(db, current_user.ma_nguoi_dung, limit, offset)
+    rows, total = await list_may_bom_for_user(db, current_user.ma_nguoi_dung, limit, offset)
     items = [
         PumpOut(
             ma_may_bom=r.ma_may_bom,
@@ -55,7 +56,9 @@ async def list_may_bom_endpoint(
         )
         for r in rows
     ]
-    return {"data": items, "limit": limit, "offset": offset, "total": len(items)}
+    page = (offset // limit) + 1 if limit > 0 else 1
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    return {"data": items, "limit": limit, "offset": offset, "page": page, "total_pages": total_pages, "total": total}
 
 
 @router.get("/{ma_may_bom}", status_code=200)
