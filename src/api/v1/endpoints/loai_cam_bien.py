@@ -101,7 +101,9 @@ async def delete_loai_cam_bien_endpoint(
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy loại cảm biến")
 
-    await delete_loai_cam_bien(db, ma_loai_cam_bien)
+    deleted = await delete_loai_cam_bien(db, ma_loai_cam_bien)
+    if not deleted:
+        raise HTTPException(status_code=409, detail="Không thể xóa loại cảm biến vì còn cảm biến tham chiếu. Xóa hoặc cập nhật các cảm biến trước.")
     await db.commit()
     return {
         "message": "Xoá loại cảm biến thành công!",

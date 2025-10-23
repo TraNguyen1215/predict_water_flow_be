@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from src.schemas.loai_cam_bien import LoaiCamBienCreate
 from typing import Optional
 from src.models.loai_cam_bien import LoaiCamBien
+from src.models.cam_bien import CamBien
 
 
 async def list_loai_cam_bien(db: AsyncSession, limit: int = 100, offset: int = 0):
@@ -42,4 +43,11 @@ async def update_loai_cam_bien(db: AsyncSession, ma_loai_cam_bien: int, payload:
 async def delete_loai_cam_bien(db: AsyncSession, ma_loai_cam_bien: int):
     obj = await get_loai_cam_bien_by_id(db, ma_loai_cam_bien)
     if obj:
+        q = select(func.count()).select_from(CamBien).where(CamBien.loai == ma_loai_cam_bien)
+        res = await db.execute(q)
+        count = int(res.scalar_one())
+        if count > 0:
+            return False
         await db.delete(obj)
+        return True
+    return False
