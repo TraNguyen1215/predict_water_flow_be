@@ -16,7 +16,7 @@ router = APIRouter()
 # Lấy thông tin loại cảm biến
 @router.get("/", status_code=200)
 async def get_loai_cam_bien(
-    limit: int = Query(15, ge=1, le=1000),
+    limit: int = Query(15, ge=1),
     offset: int = Query(0, ge=0),
     page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),

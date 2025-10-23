@@ -22,7 +22,7 @@ router = APIRouter()
 @router.get("/", status_code=200)
 async def list_du_lieu(
     ma_may_bom: Optional[int] = Query(None),
-    limit: int = Query(15, ge=1, le=1000),
+    limit: int = Query(15, ge=1),
     offset: int = Query(0, ge=0),
     page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),
@@ -38,6 +38,10 @@ async def list_du_lieu(
 
     if page is not None:
         offset = (page - 1) * limit
+        
+    #nếu limit<0 lấy tất cả dữ liệu
+    if limit < 0:
+        limit = None
 
     rows, total = await list_du_lieu_for_user(db, current_user.ma_nguoi_dung, ma_may_bom, limit, offset)
     items = [
@@ -66,7 +70,7 @@ async def list_du_lieu(
 async def get_du_lieu_theo_ngay(
     ngay: date,
     ma_may_bom: int = Query(None),
-    limit: int = Query(None, ge=1, le=1000),
+    limit: int = Query(None, ge=1),
     offset: int = Query(0, ge=0),
     page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),
