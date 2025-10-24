@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import nguoi_dung, auth, loai_cam_bien, cam_bien, may_bom, nhat_ky_may_bom, du_lieu_cam_bien
+from .endpoints import nguoi_dung, auth, loai_cam_bien, cam_bien, may_bom, nhat_ky_may_bom, du_lieu_cam_bien, du_lieu_du_bao
 
 api_v1_router = APIRouter()
 
@@ -44,4 +44,11 @@ api_v1_router.include_router(
     du_lieu_cam_bien.router,
     prefix="/du-lieu-cam-bien",
     tags=["du-lieu-cam-bien"]
+)
+
+
+api_v1_router.include_router(
+    du_lieu_du_bao.router,
+    prefix="/du-lieu-du-bao",
+    tags=["du-lieu-du-bao"]
 )
