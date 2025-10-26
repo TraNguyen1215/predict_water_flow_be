@@ -100,6 +100,7 @@ async def get_nguoi_dung(
         avatar=nguoi_dung.avatar,
         trang_thai=nguoi_dung.trang_thai,
         thoi_gian_tao=nguoi_dung.thoi_gian_tao,
+        quan_tri_vien=nguoi_dung.quan_tri_vien,
     )
     
 # Cập nhật thông tin người dùng
@@ -121,13 +122,14 @@ async def update_nguoi_dung(
     if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
-    # update fields on ORM instance and commit
     if payload.ho_ten is not None:
         nguoi_dung.ho_ten = payload.ho_ten
     if payload.so_dien_thoai is not None:
         nguoi_dung.so_dien_thoai = payload.so_dien_thoai
     if payload.dia_chi is not None:
         nguoi_dung.dia_chi = payload.dia_chi
+    if payload.quan_tri_vien is not None:
+        nguoi_dung.quan_tri_vien = payload.quan_tri_vien
     await db.commit()
     return {
         "message": "Cập nhật thông tin người dùng thành công!",

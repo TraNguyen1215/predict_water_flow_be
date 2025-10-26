@@ -20,3 +20,4 @@ class NguoiDung(Base):
     dang_nhap_lan_cuoi = Column(DateTime)
     thoi_gian_tao = Column(DateTime, server_default=func.now())
     thoi_gian_cap_nhat = Column(DateTime, onupdate=func.now())
+    quan_tri_vien = Column(Boolean, default=False)

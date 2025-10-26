@@ -13,12 +13,14 @@ class UserPublic(BaseModel):
     trang_thai: Optional[bool] = None
     thoi_gian_tao: Optional[datetime] = None
     dang_nhap_lan_cuoi: Optional[datetime] = None
+    quan_tri_vien: Optional[bool] = None
 
 
 class UserUpdate(BaseModel):
     ho_ten: Optional[str]
     so_dien_thoai: Optional[str]
     dia_chi: Optional[str]
+    quan_tri_vien: Optional[bool]
 
 
 class TokenResponse(BaseModel):
