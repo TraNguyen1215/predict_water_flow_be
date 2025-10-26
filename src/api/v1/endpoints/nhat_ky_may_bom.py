@@ -38,16 +38,18 @@ async def create_nhat_ky_endpoint(
     )
 
 
-@router.get("/", status_code=200)
+@router.get("/ngay/{ngay}", status_code=200)
 async def list_nhat_ky_endpoint(
+    ngay: date,
     ma_may_bom: int = Query(...),
-    limit: int = Query(15, ge=1, le=500),
+    limit: int = Query(15, ge=1),
     offset: int = Query(0, ge=0),
     page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Danh sách nhật ký cho một máy bơm (chỉ chủ sở hữu)."""
+    """Danh sách nhật ký cho một máy bơm (chỉ chủ sở hữu).
+    """
     
     pump = await get_may_bom_by_id(db, ma_may_bom)
     if not pump:
@@ -58,7 +60,7 @@ async def list_nhat_ky_endpoint(
     if page is not None:
         offset = (page - 1) * limit
 
-    rows, total = await list_nhat_ky_for_pump(db, ma_may_bom, limit, offset)
+    rows, total = await list_nhat_ky_for_pump(db, ngay, ma_may_bom, limit, offset)
     items = [
         NhatKyOut(ma_nhat_ky=r.ma_nhat_ky, ma_may_bom=r.ma_may_bom, thoi_gian_bat=r.thoi_gian_bat, thoi_gian_tat=r.thoi_gian_tat, ghi_chu=r.ghi_chu, thoi_gian_tao=r.thoi_gian_tao)
         for r in rows
@@ -87,7 +89,6 @@ async def get_nhat_ky_endpoint(
         raise HTTPException(status_code=403, detail="Không được phép truy cập nhật ký của người khác")
 
     return NhatKyOut(ma_nhat_ky=r.ma_nhat_ky, ma_may_bom=r.ma_may_bom, thoi_gian_bat=r.thoi_gian_bat, thoi_gian_tat=r.thoi_gian_tat, ghi_chu=r.ghi_chu, thoi_gian_tao=r.thoi_gian_tao)
-
 
 @router.put("/{ma_nhat_ky}", status_code=200)
 async def update_nhat_ky_endpoint(
