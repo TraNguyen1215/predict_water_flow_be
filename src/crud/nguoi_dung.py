@@ -70,3 +70,13 @@ async def verify_user_by_pump_and_date(db: AsyncSession, ten_dang_nhap: str, ten
     )
     res = await db.execute(q)
     return res.scalars().first()
+
+async def list_users(db: AsyncSession, limit: int = 50, offset: int = 0):
+    q = select(NguoiDung).order_by(NguoiDung.thoi_gian_tao.desc()).limit(limit).offset(offset)
+    res = await db.execute(q)
+    items = res.scalars().all()
+
+    count_q = select(func.count()).select_from(NguoiDung)
+    count_res = await db.execute(count_q)
+    total = int(count_res.scalar_one())
+    return items, total

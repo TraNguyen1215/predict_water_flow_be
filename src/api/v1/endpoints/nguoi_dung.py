@@ -1,6 +1,7 @@
 import datetime
 import re
 import uuid
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -9,7 +10,7 @@ import aiofiles
 import os
 from src.api import deps
 from src.schemas.user import UserPublic, UserUpdate
-from src.crud.nguoi_dung import get_by_username, get_by_id, update_avatar, delete_user
+from src.crud.nguoi_dung import get_by_username, get_by_id, update_avatar, delete_user, list_users
 
 router = APIRouter()
 
@@ -72,6 +73,43 @@ async def update_avatar_nguoi_dung(
         "ten_dang_nhap": ten_dang_nhap,
         "avatar": file_name,
     }
+
+# Lấy danh sách người dùng (chỉ admin)
+@router.get("/", status_code=200)
+async def list_nguoi_dung(
+    limit: int = 50,
+    offset: int = 0,
+    page: Optional[int] = None,
+    db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
+):
+    """Trả về danh sách người dùng. Chỉ admin mới được phép truy cập."""
+    # Kiểm tra quyền admin
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới có quyền xem danh sách người dùng")
+
+    if page is not None:
+        offset = (page - 1) * limit
+
+    rows, total = await list_users(db, limit=limit, offset=offset)
+    items = [
+        UserPublic(
+            ma_nguoi_dung=r.ma_nguoi_dung,
+            ho_ten=r.ho_ten,
+            so_dien_thoai=r.so_dien_thoai,
+            dia_chi=r.dia_chi,
+            dang_nhap_lan_cuoi=r.dang_nhap_lan_cuoi,
+            avatar=r.avatar,
+            trang_thai=r.trang_thai,
+            thoi_gian_tao=r.thoi_gian_tao,
+            quan_tri_vien=r.quan_tri_vien,
+        )
+        for r in rows
+    ]
+
+    page = (offset // limit) + 1 if limit > 0 else 1
+    total_pages = (total + limit - 1) // limit if limit > 0 else 1
+    return {"data": items, "limit": limit, "offset": offset, "page": page, "total_pages": total_pages, "total": total}
     
 # Lấy thông tin người dùng
 @router.get("/{ten_dang_nhap}", status_code=200, response_model=UserPublic)
