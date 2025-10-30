@@ -9,6 +9,7 @@ from .endpoints import (
     du_lieu_cam_bien,
     du_lieu_du_bao,
     tep_ma_nhung,
+    mo_hinh_du_bao,
 )
 
 api_v1_router = APIRouter()
@@ -67,4 +68,10 @@ api_v1_router.include_router(
     tep_ma_nhung.router,
     prefix="/tep-ma-nhung",
     tags=["tep-ma-nhung"]
+)
+
+api_v1_router.include_router(
+    mo_hinh_du_bao.router,
+    prefix="/mo-hinh-du-bao",
+    tags=["mo-hinh-du-bao"]
 )
