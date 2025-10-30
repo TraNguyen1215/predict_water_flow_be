@@ -56,10 +56,14 @@ async def get_loai_cam_bien_theo_ma(
 async def create_loai_cam_bien_endpoint(
     payload: LoaiCamBienCreate,
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
     """
     Thêm loại cảm biến mới.
     """
+
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới được phép thêm loại cảm biến")
 
     await create_loai_cam_bien(db, payload)
     await db.commit()
@@ -71,10 +75,14 @@ async def update_loai_cam_bien_endpoint(
     ma_loai_cam_bien: int,
     payload: LoaiCamBienCreate,
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
     """
     Cập nhật loại cảm biến theo mã loại cảm biến.
     """
+
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới được phép cập nhật loại cảm biến")
 
     r = await get_loai_cam_bien_by_id(db, ma_loai_cam_bien)
     if not r:
@@ -92,10 +100,14 @@ async def update_loai_cam_bien_endpoint(
 async def delete_loai_cam_bien_endpoint(
     ma_loai_cam_bien: int,
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
     """
     Xoá loại cảm biến theo mã loại cảm biến.
     """
+
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới được phép xoá loại cảm biến")
 
     r = await get_loai_cam_bien_by_id(db, ma_loai_cam_bien)
     if not r:
