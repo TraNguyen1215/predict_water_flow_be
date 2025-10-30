@@ -1,12 +1,15 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 from collections import defaultdict
 from typing import Dict, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select, update, delete
+from sqlalchemy import and_, delete, func, or_, select, update
 from src.models.cam_bien import CamBien
 from src.models.loai_cam_bien import LoaiCamBien
 from src.models.may_bom import MayBom
 from src.models.nguoi_dung import NguoiDung
+from src.models.du_lieu_cam_bien import DuLieuCamBien
+from src.models.du_lieu_du_bao import DuLieuDuBao
+from src.models.nhat_ky_may_bom import NhatKyMayBom
 from uuid import UUID
 
 
@@ -75,7 +78,74 @@ async def verify_user_by_pump_and_date(db: AsyncSession, ten_dang_nhap: str, ten
     res = await db.execute(q)
     return res.scalars().first()
 
+
+async def _apply_user_inactivity_policy(db: AsyncSession):
+    """Mark inactive users and purge their related data after extended inactivity."""
+
+    now = datetime.utcnow()
+    inactive_date = (now - timedelta(days=30)).date()
+    cleanup_date = (now - timedelta(days=90)).date()
+
+    inactive_condition = or_(
+        and_(
+            NguoiDung.dang_nhap_lan_cuoi.isnot(None),
+            func.date(NguoiDung.dang_nhap_lan_cuoi) <= inactive_date,
+        ),
+        and_(
+            NguoiDung.dang_nhap_lan_cuoi.is_(None),
+            func.date(NguoiDung.thoi_gian_tao) <= inactive_date,
+        ),
+    )
+
+    await db.execute(
+        update(NguoiDung)
+        .where(inactive_condition)
+        .values(trang_thai=False)
+    )
+
+    await db.execute(
+        update(NguoiDung)
+        .where(NguoiDung.dang_nhap_lan_cuoi.isnot(None))
+        .where(func.date(NguoiDung.dang_nhap_lan_cuoi) > inactive_date)
+        .values(trang_thai=True)
+    )
+
+    cleanup_condition = or_(
+        and_(
+            NguoiDung.dang_nhap_lan_cuoi.isnot(None),
+            func.date(NguoiDung.dang_nhap_lan_cuoi) <= cleanup_date,
+        ),
+        and_(
+            NguoiDung.dang_nhap_lan_cuoi.is_(None),
+            func.date(NguoiDung.thoi_gian_tao) <= cleanup_date,
+        ),
+    )
+
+    cleanup_res = await db.execute(select(NguoiDung.ma_nguoi_dung).where(cleanup_condition))
+    cleanup_user_ids = [row[0] for row in cleanup_res.all()]
+
+    if cleanup_user_ids:
+        pump_res = await db.execute(
+            select(MayBom.ma_may_bom).where(MayBom.ma_nguoi_dung.in_(cleanup_user_ids))
+        )
+        pump_ids = [row[0] for row in pump_res.all()]
+
+        if pump_ids:
+            await db.execute(delete(NhatKyMayBom).where(NhatKyMayBom.ma_may_bom.in_(pump_ids)))
+            await db.execute(delete(DuLieuCamBien).where(DuLieuCamBien.ma_may_bom.in_(pump_ids)))
+            await db.execute(delete(DuLieuDuBao).where(DuLieuDuBao.ma_may_bom.in_(pump_ids)))
+
+        await db.execute(delete(DuLieuCamBien).where(DuLieuCamBien.ma_nguoi_dung.in_(cleanup_user_ids)))
+        await db.execute(delete(DuLieuDuBao).where(DuLieuDuBao.ma_nguoi_dung.in_(cleanup_user_ids)))
+        await db.execute(delete(CamBien).where(CamBien.ma_nguoi_dung.in_(cleanup_user_ids)))
+        await db.execute(delete(MayBom).where(MayBom.ma_nguoi_dung.in_(cleanup_user_ids)))
+
+    await db.commit()
+
+
 async def list_users(db: AsyncSession, limit: int = 50, offset: int = 0):
+    await _apply_user_inactivity_policy(db)
+
     q = select(NguoiDung).order_by(NguoiDung.thoi_gian_tao.desc()).limit(limit).offset(offset)
     res = await db.execute(q)
     items = res.scalars().all()
