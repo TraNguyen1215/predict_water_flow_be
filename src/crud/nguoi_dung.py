@@ -1,9 +1,13 @@
 from datetime import date
+from collections import defaultdict
+from typing import Dict, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select, update, delete
+from src.models.cam_bien import CamBien
+from src.models.loai_cam_bien import LoaiCamBien
+from src.models.may_bom import MayBom
 from src.models.nguoi_dung import NguoiDung
 from uuid import UUID
-from typing import Optional
 
 
 async def get_by_username(db: AsyncSession, ten_dang_nhap: str) -> Optional[NguoiDung]:
@@ -76,7 +80,77 @@ async def list_users(db: AsyncSession, limit: int = 50, offset: int = 0):
     res = await db.execute(q)
     items = res.scalars().all()
 
+    user_ids = [user.ma_nguoi_dung for user in items]
+    pumps_by_user: Dict[UUID, List[dict]] = defaultdict(list)
+    sensors_by_user: Dict[UUID, List[dict]] = defaultdict(list)
+    pump_counts: Dict[UUID, int] = defaultdict(int)
+    sensor_counts: Dict[UUID, int] = defaultdict(int)
+    pump_lookup: Dict[int, dict] = {}
+    sensor_counts_per_pump: Dict[int, int] = defaultdict(int)
+
+    if user_ids:
+        pump_q = (
+            select(
+                MayBom.ma_nguoi_dung.label("ma_nguoi_dung"),
+                MayBom.ma_may_bom.label("ma_may_bom"),
+                MayBom.ten_may_bom.label("ten_may_bom"),
+                MayBom.mo_ta.label("mo_ta"),
+                MayBom.ma_iot_lk.label("ma_iot_lk"),
+                MayBom.che_do.label("che_do"),
+                MayBom.trang_thai.label("trang_thai"),
+                MayBom.thoi_gian_tao.label("thoi_gian_tao"),
+            )
+            .where(MayBom.ma_nguoi_dung.in_(user_ids))
+        )
+        pump_res = await db.execute(pump_q)
+        for row in pump_res.mappings():
+            pump_dict = dict(row)
+            pump_dict["cam_bien"] = []
+            pump_dict["tong_cam_bien"] = 0
+            pumps_by_user[row["ma_nguoi_dung"]].append(pump_dict)
+            pump_lookup[row["ma_may_bom"]] = pump_dict
+            pump_counts[row["ma_nguoi_dung"]] += 1
+            sensor_counts_per_pump[row["ma_may_bom"]] = 0
+
+        sensor_q = (
+            select(
+                CamBien.ma_nguoi_dung.label("ma_nguoi_dung"),
+                CamBien.ma_cam_bien.label("ma_cam_bien"),
+                CamBien.ten_cam_bien.label("ten_cam_bien"),
+                CamBien.mo_ta.label("mo_ta"),
+                CamBien.ngay_lap_dat.label("ngay_lap_dat"),
+                CamBien.thoi_gian_tao.label("thoi_gian_tao"),
+                CamBien.ma_may_bom.label("ma_may_bom"),
+                MayBom.ten_may_bom.label("ten_may_bom"),
+                CamBien.trang_thai.label("trang_thai"),
+                CamBien.loai.label("loai"),
+                LoaiCamBien.ten_loai_cam_bien.label("ten_loai_cam_bien"),
+            )
+            .join(MayBom, CamBien.ma_may_bom == MayBom.ma_may_bom, isouter=True)
+            .join(LoaiCamBien, CamBien.loai == LoaiCamBien.ma_loai_cam_bien, isouter=True)
+            .where(CamBien.ma_nguoi_dung.in_(user_ids))
+        )
+        sensor_res = await db.execute(sensor_q)
+        for row in sensor_res.mappings():
+            sensor_dict = dict(row)
+            user_id = row["ma_nguoi_dung"]
+            sensors_by_user[user_id].append(sensor_dict)
+            sensor_counts[user_id] += 1
+
+            pump_id = row["ma_may_bom"]
+            if pump_id is not None and pump_id in pump_lookup:
+                pump_lookup[pump_id]["cam_bien"].append(sensor_dict)
+                sensor_counts_per_pump[pump_id] += 1
+                pump_lookup[pump_id]["tong_cam_bien"] = sensor_counts_per_pump[pump_id]
+
     count_q = select(func.count()).select_from(NguoiDung)
     count_res = await db.execute(count_q)
     total = int(count_res.scalar_one())
-    return items, total
+    return (
+        items,
+        total,
+        {key: value for key, value in pumps_by_user.items()},
+        {key: value for key, value in sensors_by_user.items()},
+        {key: value for key, value in pump_counts.items()},
+        {key: value for key, value in sensor_counts.items()},
+    )

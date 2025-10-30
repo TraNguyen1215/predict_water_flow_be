@@ -1,6 +1,7 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import List, Optional
 from datetime import datetime
+from src.schemas.sensor import SensorOut
 
 
 class PumpCreate(BaseModel):
@@ -19,3 +20,5 @@ class PumpOut(BaseModel):
     che_do: Optional[int] = None
     trang_thai: Optional[bool] = None
     thoi_gian_tao: Optional[datetime] = None
+    tong_cam_bien: int = Field(default=0)
+    cam_bien: List[SensorOut] = Field(default_factory=list)

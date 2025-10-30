@@ -9,6 +9,8 @@ from pathlib import Path
 import aiofiles
 import os
 from src.api import deps
+from src.schemas.pump import PumpOut
+from src.schemas.sensor import SensorOut
 from src.schemas.user import UserPublic, UserUpdate
 from src.crud.nguoi_dung import get_by_username, get_by_id, update_avatar, delete_user, list_users
 
@@ -91,7 +93,7 @@ async def list_nguoi_dung(
     if page is not None:
         offset = (page - 1) * limit
 
-    rows, total = await list_users(db, limit=limit, offset=offset)
+    rows, total, pumps_map, sensors_map, pump_counts, sensor_counts = await list_users(db, limit=limit, offset=offset)
     items = [
         UserPublic(
             ma_nguoi_dung=r.ma_nguoi_dung,
@@ -103,6 +105,51 @@ async def list_nguoi_dung(
             trang_thai=r.trang_thai,
             thoi_gian_tao=r.thoi_gian_tao,
             quan_tri_vien=r.quan_tri_vien,
+            may_bom=[
+                PumpOut(
+                    ma_may_bom=pump_row.get("ma_may_bom"),
+                    ten_may_bom=pump_row.get("ten_may_bom"),
+                    mo_ta=pump_row.get("mo_ta"),
+                    ma_iot_lk=pump_row.get("ma_iot_lk"),
+                    che_do=pump_row.get("che_do"),
+                    trang_thai=pump_row.get("trang_thai"),
+                    thoi_gian_tao=pump_row.get("thoi_gian_tao"),
+                    tong_cam_bien=pump_row.get("tong_cam_bien", 0),
+                    cam_bien=[
+                        SensorOut(
+                            ma_cam_bien=sensor_row.get("ma_cam_bien"),
+                            ten_cam_bien=sensor_row.get("ten_cam_bien"),
+                            mo_ta=sensor_row.get("mo_ta"),
+                            ngay_lap_dat=sensor_row.get("ngay_lap_dat"),
+                            thoi_gian_tao=sensor_row.get("thoi_gian_tao"),
+                            ma_may_bom=sensor_row.get("ma_may_bom"),
+                            ten_may_bom=sensor_row.get("ten_may_bom"),
+                            trang_thai=sensor_row.get("trang_thai"),
+                            loai=sensor_row.get("loai"),
+                            ten_loai_cam_bien=sensor_row.get("ten_loai_cam_bien"),
+                        )
+                        for sensor_row in pump_row.get("cam_bien", [])
+                    ],
+                )
+                for pump_row in pumps_map.get(r.ma_nguoi_dung, [])
+            ],
+            cam_bien=[
+                SensorOut(
+                    ma_cam_bien=sensor_row.get("ma_cam_bien"),
+                    ten_cam_bien=sensor_row.get("ten_cam_bien"),
+                    mo_ta=sensor_row.get("mo_ta"),
+                    ngay_lap_dat=sensor_row.get("ngay_lap_dat"),
+                    thoi_gian_tao=sensor_row.get("thoi_gian_tao"),
+                    ma_may_bom=sensor_row.get("ma_may_bom"),
+                    ten_may_bom=sensor_row.get("ten_may_bom"),
+                    trang_thai=sensor_row.get("trang_thai"),
+                    loai=sensor_row.get("loai"),
+                    ten_loai_cam_bien=sensor_row.get("ten_loai_cam_bien"),
+                )
+                for sensor_row in sensors_map.get(r.ma_nguoi_dung, [])
+            ],
+            tong_may_bom=pump_counts.get(r.ma_nguoi_dung, 0),
+            tong_cam_bien=sensor_counts.get(r.ma_nguoi_dung, 0),
         )
         for r in rows
     ]
