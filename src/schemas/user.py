@@ -8,6 +8,7 @@ from src.schemas.sensor import SensorOut
 
 class UserPublic(BaseModel):
     ma_nguoi_dung: UUID
+    ten_dang_nhap: str
     ho_ten: Optional[str] = None
     so_dien_thoai: Optional[str] = None
     dia_chi: Optional[str] = None

@@ -53,18 +53,6 @@ async def delete_user(db: AsyncSession, ma_nguoi_dung: UUID):
 
 
 async def verify_user_by_pump_and_date(db: AsyncSession, ten_dang_nhap: str, ten_may_bom: str, ngay_tuoi_gan_nhat: date) -> Optional[NguoiDung]:
-    """Return the most recent NguoiDung matching the username, pump name and a matching nhat_ky_may_bom.ngay value.
-
-    This replicates the SQL join:
-        nguoi_dung nd
-        JOIN may_bom mb ON nd.ma_nguoi_dung = mb.ma_nguoi_dung
-        JOIN nhat_ky_may_bom nk ON nk.ma_may_bom = mb.ma_may_bom
-    with ordering on nk.thoi_gian_tao DESC and LIMIT 1.
-    """
-    from sqlalchemy import select
-    from src.models.may_bom import MayBom
-    from src.models.nhat_ky_may_bom import NhatKyMayBom
-    
     q = (
         select(NguoiDung)
         .join(MayBom, NguoiDung.ma_nguoi_dung == MayBom.ma_nguoi_dung)

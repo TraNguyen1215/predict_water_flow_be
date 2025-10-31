@@ -42,7 +42,7 @@ async def update_avatar_nguoi_dung(
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
-    if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
+    if not getattr(current_user, "quan_tri_vien", False) and str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
     if nguoi_dung.avatar:
@@ -97,6 +97,7 @@ async def list_nguoi_dung(
     items = [
         UserPublic(
             ma_nguoi_dung=r.ma_nguoi_dung,
+            ten_dang_nhap=r.ten_dang_nhap,
             ho_ten=r.ho_ten,
             so_dien_thoai=r.so_dien_thoai,
             dia_chi=r.dia_chi,
@@ -178,6 +179,7 @@ async def get_nguoi_dung(
 
     return UserPublic(
         ma_nguoi_dung=nguoi_dung.ma_nguoi_dung,
+        ten_dang_nhap=nguoi_dung.ten_dang_nhap,
         ho_ten=nguoi_dung.ho_ten,
         so_dien_thoai=nguoi_dung.so_dien_thoai,
         dia_chi=nguoi_dung.dia_chi,
@@ -204,8 +206,14 @@ async def update_nguoi_dung(
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
-    if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
+    is_admin = getattr(current_user, "quan_tri_vien", False)
+    is_self = str(ten_dang_nhap) == str(current_user.ten_dang_nhap)
+
+    if not is_admin and not is_self:
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
+
+    if payload.quan_tri_vien is not None and not is_admin:
+        raise HTTPException(status_code=403, detail="Không được phép cập nhật quyền quản trị")
 
     if payload.ho_ten is not None:
         nguoi_dung.ho_ten = payload.ho_ten
@@ -236,7 +244,7 @@ async def delete_nguoi_dung(
     if not nguoi_dung:
         raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
 
-    if str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
+    if not getattr(current_user, "quan_tri_vien", False) and str(ten_dang_nhap) != str(current_user.ten_dang_nhap):
         raise HTTPException(status_code=403, detail="Từ chối truy cập!")
 
     if nguoi_dung.avatar:
