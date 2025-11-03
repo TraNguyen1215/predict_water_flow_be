@@ -4,6 +4,13 @@ from datetime import datetime
 from src.schemas.sensor import SensorOut
 
 
+class PumpMinimal(BaseModel):
+    ma_may_bom: int
+    ten_may_bom: str
+    mo_ta: Optional[str] = None
+    trang_thai: Optional[bool] = None
+
+
 class PumpCreate(BaseModel):
     ten_may_bom: str
     mo_ta: Optional[str]

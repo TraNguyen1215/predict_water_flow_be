@@ -29,8 +29,36 @@ async def get_loai_cam_bien(
     if page is not None:
         offset = (page - 1) * limit
 
+    from src.schemas.sensor_type_list import SensorTypeWithSensors, SensorInType
+    
     rows, total = await list_loai_cam_bien(db, limit=limit, offset=offset)
-    data = [LoaiCamBienOut(ma_loai_cam_bien=row.ma_loai_cam_bien, ten_loai_cam_bien=row.ten_loai_cam_bien, thoi_gian_tao=row.thoi_gian_tao, thoi_gian_cap_nhat=row.thoi_gian_cap_nhat) for row in rows]
+    data = []
+    for row in rows:
+        sensors = [
+            SensorInType(
+                ma_cam_bien=s["ma_cam_bien"],
+                ten_cam_bien=s["ten_cam_bien"],
+                mo_ta=s.get("mo_ta"),
+                ngay_lap_dat=s.get("ngay_lap_dat"),
+                thoi_gian_tao=s.get("thoi_gian_tao"),
+                trang_thai=s.get("trang_thai"),
+                may_bom=s.get("may_bom"),
+                nguoi_dung=s.get("nguoi_dung"),
+            )
+            for s in getattr(row, "cam_bien", [])
+        ]
+        
+        data.append(
+            SensorTypeWithSensors(
+                ma_loai_cam_bien=row.ma_loai_cam_bien,
+                ten_loai_cam_bien=row.ten_loai_cam_bien,
+                thoi_gian_tao=row.thoi_gian_tao,
+                thoi_gian_cap_nhat=row.thoi_gian_cap_nhat,
+                tong_cam_bien=getattr(row, "tong_cam_bien", 0),
+                cam_bien=sensors,
+            )
+        )
+    
     page = (offset // limit) + 1 if limit > 0 else 1
     total_pages = math.ceil(total / limit) if limit > 0 else 1
     return {"data": data, "limit": limit, "offset": offset, "page": page, "total_pages": total_pages, "total": total}
