@@ -30,7 +30,6 @@ async def create_may_bom_endpoint(
         ma_may_bom=getattr(ma, "ma_may_bom"),
         ten_may_bom=payload.ten_may_bom,
         mo_ta=payload.mo_ta,
-        ma_iot_lk=payload.ma_iot_lk,
         che_do=payload.che_do,
         trang_thai=payload.trang_thai,
     )
@@ -54,7 +53,6 @@ async def list_may_bom_endpoint(
             ma_may_bom=r.ma_may_bom,
             ten_may_bom=r.ten_may_bom,
             mo_ta=r.mo_ta,
-            ma_iot_lk=r.ma_iot_lk,
             che_do=r.che_do,
             trang_thai=r.trang_thai,
             thoi_gian_tao=r.thoi_gian_tao,
@@ -85,7 +83,6 @@ async def get_may_bom_endpoint(
         ma_may_bom=pump.ma_may_bom,
         ten_may_bom=pump.ten_may_bom,
         mo_ta=pump.mo_ta,
-        ma_iot_lk=pump.ma_iot_lk,
         che_do=pump.che_do,
         trang_thai=pump.trang_thai,
         thoi_gian_tao=pump.thoi_gian_tao,

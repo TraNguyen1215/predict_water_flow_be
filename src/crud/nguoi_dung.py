@@ -153,7 +153,6 @@ async def list_users(db: AsyncSession, limit: int = 50, offset: int = 0):
                 MayBom.ma_may_bom.label("ma_may_bom"),
                 MayBom.ten_may_bom.label("ten_may_bom"),
                 MayBom.mo_ta.label("mo_ta"),
-                MayBom.ma_iot_lk.label("ma_iot_lk"),
                 MayBom.che_do.label("che_do"),
                 MayBom.trang_thai.label("trang_thai"),
                 MayBom.thoi_gian_tao.label("thoi_gian_tao"),

@@ -14,7 +14,6 @@ async def create_may_bom(db: AsyncSession, ma_nd: uuid.UUID, payload: PumpCreate
     obj = MayBom(
         ten_may_bom=payload.ten_may_bom,
         mo_ta=payload.mo_ta,
-        ma_iot_lk=payload.ma_iot_lk,
         che_do=payload.che_do,
         trang_thai=payload.trang_thai,
         ma_nguoi_dung=ma_nd,
@@ -83,7 +82,6 @@ async def update_may_bom(db: AsyncSession, ma_may_bom: int, payload: PumpCreate)
         return None
     obj.ten_may_bom = payload.ten_may_bom
     obj.mo_ta = payload.mo_ta
-    obj.ma_iot_lk = payload.ma_iot_lk
     obj.che_do = payload.che_do
     obj.trang_thai = payload.trang_thai
     await db.flush()

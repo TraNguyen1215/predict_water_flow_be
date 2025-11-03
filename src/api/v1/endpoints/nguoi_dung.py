@@ -111,7 +111,6 @@ async def list_nguoi_dung(
                     ma_may_bom=pump_row.get("ma_may_bom"),
                     ten_may_bom=pump_row.get("ten_may_bom"),
                     mo_ta=pump_row.get("mo_ta"),
-                    ma_iot_lk=pump_row.get("ma_iot_lk"),
                     che_do=pump_row.get("che_do"),
                     trang_thai=pump_row.get("trang_thai"),
                     thoi_gian_tao=pump_row.get("thoi_gian_tao"),
