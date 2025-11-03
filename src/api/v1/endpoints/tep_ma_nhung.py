@@ -5,7 +5,8 @@ from pathlib import Path
 import aiofiles
 import os
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form, Response
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.api import deps
 from src.schemas.tep_ma_nhung import *
@@ -171,11 +172,49 @@ async def delete_tep_ma_nhung_endpoint(
     if not getattr(current_user, "quan_tri_vien", False):
         raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới được phép xoá tệp mã nhúng")
 
+    obj = await get_tep_ma_nhung_by_id(db, ma_tep_ma_nhung)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp mã nhúng")
+
+    if obj.url:
+        file_path = UPLOAD_DIR / obj.url
+        if file_path.exists():
+            try:
+                file_path.unlink()
+            except Exception as e:
+                print(f"Error deleting file {file_path}: {e}")
+
     deleted = await delete_tep_ma_nhung(db, ma_tep_ma_nhung)
     if not deleted:
         raise HTTPException(status_code=404, detail="Không tìm thấy tệp mã nhúng")
     await db.commit()
+    
     return {
         "message": "Xoá tệp mã nhúng thành công",
         "ma_tep_ma_nhung": ma_tep_ma_nhung,
     }
+
+@router.get("/{ma_tep_ma_nhung}/download", status_code=200)
+async def download_tep_ma_nhung_endpoint(
+    ma_tep_ma_nhung: int,
+    db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
+):
+    """Tải xuống tệp mã nhúng."""
+    
+    obj = await get_tep_ma_nhung_by_id(db, ma_tep_ma_nhung)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp mã nhúng")
+
+    if not obj.url:
+        raise HTTPException(status_code=404, detail="Tệp mã nhúng không có file để tải xuống")
+
+    file_path = UPLOAD_DIR / obj.url
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Không tìm thấy file mã nhúng")
+
+    return FileResponse(
+        path=file_path,
+        filename=obj.ten_tep + Path(obj.url).suffix,
+        media_type="application/octet-stream"
+    )
