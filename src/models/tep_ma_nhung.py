@@ -10,5 +10,6 @@ class TepMaNhung(Base):
     ten_tep = Column(String, nullable=False)
     phien_ban = Column(String)
     mo_ta = Column(String)
+    url = Column(String)
     thoi_gian_tao = Column(DateTime, server_default=func.now())
     thoi_gian_cap_nhat = Column(DateTime, onupdate=func.now())

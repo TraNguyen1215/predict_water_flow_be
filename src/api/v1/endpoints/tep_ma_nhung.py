@@ -1,10 +1,20 @@
 import math
+import datetime
+import re
+from pathlib import Path
+import aiofiles
+import os
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.api import deps
 from src.schemas.tep_ma_nhung import *
 from src.crud.tep_ma_nhung import *
+
+UPLOAD_DIR = Path("uploads/tep_ma_nhung")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", 8 * 1024 * 1024))
 
 router = APIRouter()
 
@@ -15,6 +25,7 @@ def _to_schema(obj) -> TepMaNhungOut:
         ten_tep=getattr(obj, "ten_tep", None),
         phien_ban=getattr(obj, "phien_ban", None),
         mo_ta=getattr(obj, "mo_ta", None),
+        url=getattr(obj, "url", None),
         thoi_gian_tao=getattr(obj, "thoi_gian_tao", None),
         thoi_gian_cap_nhat=getattr(obj, "thoi_gian_cap_nhat", None),
     )
@@ -63,7 +74,10 @@ async def get_tep_ma_nhung_endpoint(
 
 @router.post("/", status_code=201, response_model=TepMaNhungOut)
 async def create_tep_ma_nhung_endpoint(
-    payload: TepMaNhungCreate,
+    ten_tep: str = Form(...),
+    phien_ban: Optional[str] = Form(None),
+    mo_ta: Optional[str] = Form(None),
+    file: UploadFile = File(None),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -72,6 +86,22 @@ async def create_tep_ma_nhung_endpoint(
     if not getattr(current_user, "quan_tri_vien", False):
         raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới được phép thêm tệp mã nhúng")
 
+    file_name = None
+    if file is not None:
+        contents = await file.read()
+        if len(contents) > MAX_UPLOAD_SIZE:
+            raise HTTPException(status_code=400, detail=f"File quá lớn (tối đa {MAX_UPLOAD_SIZE} bytes)")
+
+        now = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ext = Path(file.filename).suffix
+        safe_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", ten_tep)
+        file_name = f"{now}_{safe_name}{ext}"
+        file_path = UPLOAD_DIR / file_name
+
+        async with aiofiles.open(file_path, "wb") as out_file:
+            await out_file.write(contents)
+
+    payload = TepMaNhungCreate(ten_tep=ten_tep, phien_ban=phien_ban, mo_ta=mo_ta, url=file_name)
     obj = await create_tep_ma_nhung(db, payload)
     await db.commit()
     await db.refresh(obj)
@@ -81,7 +111,10 @@ async def create_tep_ma_nhung_endpoint(
 @router.put("/{ma_tep_ma_nhung}", status_code=200, response_model=TepMaNhungOut)
 async def update_tep_ma_nhung_endpoint(
     ma_tep_ma_nhung: int,
-    payload: TepMaNhungUpdate,
+    ten_tep: Optional[str] = Form(None),
+    phien_ban: Optional[str] = Form(None),
+    mo_ta: Optional[str] = Form(None),
+    file: UploadFile = File(None),
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
@@ -90,6 +123,35 @@ async def update_tep_ma_nhung_endpoint(
     if not getattr(current_user, "quan_tri_vien", False):
         raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới được phép cập nhật tệp mã nhúng")
 
+    existing = await get_tep_ma_nhung_by_id(db, ma_tep_ma_nhung)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp mã nhúng")
+
+    file_name = None
+    if file is not None:
+        contents = await file.read()
+        if len(contents) > MAX_UPLOAD_SIZE:
+            raise HTTPException(status_code=400, detail=f"File quá lớn (tối đa {MAX_UPLOAD_SIZE} bytes)")
+
+        now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        ext = Path(file.filename).suffix
+        safe_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", ten_tep or existing.ten_tep or str(ma_tep_ma_nhung))
+        file_name = f"{now}_{safe_name}{ext}"
+        file_path = UPLOAD_DIR / file_name
+
+        # remove old file if exists
+        if existing.url:
+            old_path = UPLOAD_DIR / existing.url
+            if old_path.exists():
+                try:
+                    old_path.unlink()
+                except Exception:
+                    pass
+
+        async with aiofiles.open(file_path, "wb") as out_file:
+            await out_file.write(contents)
+
+    payload = TepMaNhungUpdate(ten_tep=ten_tep, phien_ban=phien_ban, mo_ta=mo_ta, url=file_name)
     obj = await update_tep_ma_nhung(db, ma_tep_ma_nhung, payload)
     if not obj:
         raise HTTPException(status_code=404, detail="Không tìm thấy tệp mã nhúng")

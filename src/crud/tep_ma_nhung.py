@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
@@ -26,6 +27,8 @@ async def create_tep_ma_nhung(db: AsyncSession, payload: TepMaNhungCreate) -> Te
         ten_tep=payload.ten_tep,
         phien_ban=payload.phien_ban,
         mo_ta=payload.mo_ta,
+        url=payload.url,
+        thoi_gian_tao=datetime.now(),
     )
     db.add(obj)
     await db.flush()
@@ -43,6 +46,8 @@ async def update_tep_ma_nhung(db: AsyncSession, ma_tep_ma_nhung: int, payload: T
         obj.phien_ban = payload.phien_ban
     if payload.mo_ta is not None:
         obj.mo_ta = payload.mo_ta
+    if payload.url is not None:
+        obj.url = payload.url
 
     await db.flush()
     return obj

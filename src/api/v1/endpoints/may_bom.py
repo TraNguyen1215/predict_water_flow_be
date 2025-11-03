@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.api import deps
 from src.schemas.pump import PumpCreate, PumpOut
+from src.schemas.sensor import SensorOut
 from src.crud.may_bom import *
 
 router = APIRouter()
@@ -72,18 +73,38 @@ async def get_may_bom_endpoint(
     current_user=Depends(deps.get_current_user),
 ):
     """Lấy thông tin máy bơm theo mã máy bơm (chỉ chủ sở hữu mới được phép truy cập)."""
-    r = await get_may_bom_by_id(db, ma_may_bom)
-    if not r:
+    res = await get_may_bom_with_sensors(db, ma_may_bom)
+    if not res:
         raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm")
-    if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+
+    pump, sensors, sensor_count = res
+    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
         raise HTTPException(status_code=403, detail="Không được phép truy cập dữ liệu người khác")
+
     return PumpOut(
-        ma_may_bom=r.ma_may_bom,
-        ten_may_bom=r.ten_may_bom,
-        mo_ta=r.mo_ta,
-        ma_iot_lk=r.ma_iot_lk,
-        che_do=r.che_do,
-        trang_thai=r.trang_thai,
+        ma_may_bom=pump.ma_may_bom,
+        ten_may_bom=pump.ten_may_bom,
+        mo_ta=pump.mo_ta,
+        ma_iot_lk=pump.ma_iot_lk,
+        che_do=pump.che_do,
+        trang_thai=pump.trang_thai,
+        thoi_gian_tao=pump.thoi_gian_tao,
+        tong_cam_bien=sensor_count,
+        cam_bien=[
+            SensorOut(
+                ma_cam_bien=s.get("ma_cam_bien"),
+                ten_cam_bien=s.get("ten_cam_bien"),
+                mo_ta=s.get("mo_ta"),
+                ngay_lap_dat=s.get("ngay_lap_dat"),
+                thoi_gian_tao=s.get("thoi_gian_tao"),
+                ma_may_bom=s.get("ma_may_bom"),
+                ten_may_bom=pump.ten_may_bom,
+                trang_thai=s.get("trang_thai"),
+                loai=s.get("loai"),
+                ten_loai_cam_bien=s.get("ten_loai_cam_bien"),
+            )
+            for s in sensors
+        ],
     )
 
 

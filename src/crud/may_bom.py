@@ -5,6 +5,9 @@ from src.schemas.pump import PumpCreate
 from typing import Optional
 from src.models.may_bom import MayBom
 from src.models.nguoi_dung import NguoiDung
+from src.models.cam_bien import CamBien
+from src.models.loai_cam_bien import LoaiCamBien
+from sqlalchemy import select
 
 
 async def create_may_bom(db: AsyncSession, ma_nd: uuid.UUID, payload: PumpCreate) -> MayBom:
@@ -36,6 +39,34 @@ async def get_may_bom_by_id(db: AsyncSession, ma_may_bom: int):
     q = select(MayBom).where(MayBom.ma_may_bom == ma_may_bom)
     res = await db.execute(q)
     return res.scalars().first()
+
+
+async def get_may_bom_with_sensors(db: AsyncSession, ma_may_bom: int):
+    """Return pump object and its sensors (as mapping list) and sensor count."""
+    pump = await get_may_bom_by_id(db, ma_may_bom)
+    if not pump:
+        return None
+
+    q = (
+        select(
+            CamBien.ma_cam_bien.label("ma_cam_bien"),
+            CamBien.ten_cam_bien.label("ten_cam_bien"),
+            CamBien.mo_ta.label("mo_ta"),
+            CamBien.ngay_lap_dat.label("ngay_lap_dat"),
+            CamBien.thoi_gian_tao.label("thoi_gian_tao"),
+            CamBien.ma_may_bom.label("ma_may_bom"),
+            CamBien.trang_thai.label("trang_thai"),
+            CamBien.loai.label("loai"),
+            LoaiCamBien.ten_loai_cam_bien.label("ten_loai_cam_bien"),
+        )
+        .join(LoaiCamBien, CamBien.loai == LoaiCamBien.ma_loai_cam_bien, isouter=True)
+        .where(CamBien.ma_may_bom == ma_may_bom)
+        .order_by(CamBien.thoi_gian_tao.desc())
+    )
+
+    res = await db.execute(q)
+    sensors = [dict(r) for r in res.mappings().all()]
+    return pump, sensors, len(sensors)
 
 async def get_may_bom_by_name_and_user(db: AsyncSession, ten_may_bom: str, ma_nguoi_dung: uuid.UUID):
     q = select(MayBom).where(
