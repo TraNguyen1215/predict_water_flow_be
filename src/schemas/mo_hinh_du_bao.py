@@ -13,6 +13,7 @@ class MoHinhDuBaoUpdate(BaseModel):
     ten_mo_hinh: Optional[str] = None
     phien_ban: Optional[str] = None
     trang_thai: Optional[bool] = None
+    thoi_gian_cap_nhat: Optional[datetime] = datetime.now()
 
 
 class MoHinhDuBaoOut(BaseModel):

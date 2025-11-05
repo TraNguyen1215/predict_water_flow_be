@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
@@ -26,6 +27,7 @@ async def create_mo_hinh_du_bao(db: AsyncSession, payload: MoHinhDuBaoCreate) ->
         ten_mo_hinh=payload.ten_mo_hinh,
         phien_ban=payload.phien_ban,
         trang_thai=payload.trang_thai,
+        thoi_gian_tao=datetime.now()
     )
     db.add(obj)
     await db.flush()
