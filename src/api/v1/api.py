@@ -6,6 +6,7 @@ from .endpoints import (
     cam_bien,
     may_bom,
     nhat_ky_may_bom,
+    nhat_ky_gieo_trong,
     du_lieu_cam_bien,
     du_lieu_du_bao,
     tep_ma_nhung,
@@ -49,6 +50,12 @@ api_v1_router.include_router(
     nhat_ky_may_bom.router,
     prefix="/nhat-ky-may-bom",
     tags=["nhat-ky-may-bom"]
+)
+
+api_v1_router.include_router(
+    nhat_ky_gieo_trong.router,
+    prefix="/nhat-ky-gieo-trong",
+    tags=["nhat-ky-gieo-trong"]
 )
 
 api_v1_router.include_router(

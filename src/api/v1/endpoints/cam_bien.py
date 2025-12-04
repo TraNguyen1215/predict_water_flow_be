@@ -37,6 +37,11 @@ async def create_cam_bien_endpoint(
     current_user=Depends(deps.get_current_user),
 ):
     """Tạo cảm biến mới"""
+    # Kiểm tra xem người dùng đã có 4 cảm biến chưa
+    sensor_count = await count_cam_bien_for_user(db, current_user.ma_nguoi_dung)
+    if sensor_count >= 4:
+        raise HTTPException(status_code=400, detail="Mỗi tài khoản chỉ được có tối đa 4 cảm biến. Xoá cảm biến cũ trước khi tạo cảm biến mới")
+    
     obj = await create_cam_bien(db, current_user.ma_nguoi_dung, payload)
     await db.commit()
     return SensorOut(

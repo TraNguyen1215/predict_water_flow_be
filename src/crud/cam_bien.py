@@ -93,3 +93,10 @@ async def delete_cam_bien(db: AsyncSession, ma_cam_bien: int):
     obj = await get_cam_bien_by_id(db, ma_cam_bien)
     if obj:
         await db.delete(obj)
+
+
+async def count_cam_bien_for_user(db: AsyncSession, ma_nguoi_dung) -> int:
+    """Đếm số lượng cảm biến của một người dùng"""
+    q = select(func.count()).select_from(CamBien).where(CamBien.ma_nguoi_dung == ma_nguoi_dung)
+    res = await db.execute(q)
+    return int(res.scalar_one())

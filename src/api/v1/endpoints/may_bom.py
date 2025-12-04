@@ -18,7 +18,12 @@ async def create_may_bom_endpoint(
     current_user=Depends(deps.get_current_user),
 ):
     """Tạo máy bơm mới"""
-    #kiem tra ten may bom da ton tai chua
+    # Kiểm tra xem người dùng đã có máy bơm chưa
+    pump_count = await count_may_bom_for_user(db, current_user.ma_nguoi_dung)
+    if pump_count >= 1:
+        raise HTTPException(status_code=400, detail="Mỗi tài khoản chỉ được có 1 máy bơm. Xoá máy bơm cũ trước khi tạo máy bơm mới")
+    
+    # Kiểm tra tên máy bơm đã tồn tại chưa
     existing = await get_may_bom_by_name_and_user(db, payload.ten_may_bom, current_user.ma_nguoi_dung)
     if existing:
         raise HTTPException(status_code=400, detail="Tên máy bơm đã tồn tại")

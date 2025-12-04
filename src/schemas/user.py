@@ -34,6 +34,7 @@ class UserUpdate(BaseModel):
     so_dien_thoai: Optional[str]
     dia_chi: Optional[str]
     quan_tri_vien: Optional[bool]
+    trang_thai: Optional[bool]
 
 
 class TokenResponse(BaseModel):

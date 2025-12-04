@@ -92,3 +92,10 @@ async def delete_may_bom(db: AsyncSession, ma_may_bom: int):
     obj = await get_may_bom_by_id(db, ma_may_bom)
     if obj:
         await db.delete(obj)
+
+
+async def count_may_bom_for_user(db: AsyncSession, ma_nguoi_dung: uuid.UUID) -> int:
+    """Đếm số lượng máy bơm của một người dùng"""
+    q = select(func.count()).select_from(MayBom).where(MayBom.ma_nguoi_dung == ma_nguoi_dung)
+    res = await db.execute(q)
+    return int(res.scalar_one())

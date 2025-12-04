@@ -12,7 +12,8 @@ from src.api import deps
 from src.schemas.pump import PumpOut
 from src.schemas.sensor import SensorOut
 from src.schemas.user import UserPublic, UserUpdate
-from src.crud.nguoi_dung import get_by_username, get_by_id, update_avatar, delete_user, list_users
+from src.crud.nguoi_dung import get_by_username, get_by_id, update_avatar, delete_user, list_users, update_password
+from src.core import security
 
 router = APIRouter()
 
@@ -213,6 +214,8 @@ async def update_nguoi_dung(
 
     if payload.quan_tri_vien is not None and not is_admin:
         raise HTTPException(status_code=403, detail="Không được phép cập nhật quyền quản trị")
+    if getattr(payload, "trang_thai", None) is not None and not is_admin:
+        raise HTTPException(status_code=403, detail="Không được phép cập nhật trạng thái người dùng")
 
     if payload.ho_ten is not None:
         nguoi_dung.ho_ten = payload.ho_ten
@@ -222,11 +225,40 @@ async def update_nguoi_dung(
         nguoi_dung.dia_chi = payload.dia_chi
     if payload.quan_tri_vien is not None:
         nguoi_dung.quan_tri_vien = payload.quan_tri_vien
+    if getattr(payload, "trang_thai", None) is not None:
+        nguoi_dung.trang_thai = payload.trang_thai
+   
     await db.commit()
     return {
         "message": "Cập nhật thông tin người dùng thành công!",
         "ten_dang_nhap": ten_dang_nhap,
     }
+
+
+@router.post("/{ten_dang_nhap}/cap-lai-mat-khau", status_code=200)
+async def cap_lai_mat_khau_cho_nguoi_dung(
+    ten_dang_nhap: str,
+    mat_khau_moi: str = Body(..., embed=True),
+    db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
+):
+    """Admin cấp lại mật khẩu cho người dùng. Chỉ admin mới có quyền."""
+
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới có quyền cấp lại mật khẩu")
+
+    nguoi_dung = await get_by_username(db, ten_dang_nhap)
+    if not nguoi_dung:
+        raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu người dùng")
+
+    if len(mat_khau_moi) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
+
+    mat_khau_hash, salt = security.get_password_hash_and_salt(mat_khau_moi)
+    await update_password(db, nguoi_dung.ma_nguoi_dung, mat_khau_hash, salt)
+    await db.commit()
+
+    return {"message": "Cấp lại mật khẩu thành công", "ten_dang_nhap": ten_dang_nhap}
     
 # Xoá người dùng
 @router.delete("/{ten_dang_nhap}", status_code=200)
