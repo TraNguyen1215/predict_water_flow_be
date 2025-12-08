@@ -37,6 +37,7 @@ async def create_may_bom_endpoint(
         mo_ta=payload.mo_ta,
         che_do=payload.che_do,
         trang_thai=payload.trang_thai,
+        gioi_han_thoi_gian=payload.gioi_han_thoi_gian,
     )
 
 
@@ -60,6 +61,7 @@ async def list_may_bom_endpoint(
             mo_ta=r.mo_ta,
             che_do=r.che_do,
             trang_thai=r.trang_thai,
+            gioi_han_thoi_gian=r.gioi_han_thoi_gian,
             thoi_gian_tao=r.thoi_gian_tao,
         )
         for r in rows
@@ -90,6 +92,7 @@ async def get_may_bom_endpoint(
         mo_ta=pump.mo_ta,
         che_do=pump.che_do,
         trang_thai=pump.trang_thai,
+        gioi_han_thoi_gian=pump.gioi_han_thoi_gian,
         thoi_gian_tao=pump.thoi_gian_tao,
         tong_cam_bien=sensor_count,
         cam_bien=[
