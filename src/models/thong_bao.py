@@ -17,4 +17,5 @@ class ThongBao(Base):
     noi_dung = Column(Text, nullable=False)
     da_xem = Column(Boolean, default=False)
     thoi_gian = Column(DateTime, server_default=func.now())
+    thoi_gian_cap_nhat = Column(DateTime, onupdate=func.now())
     du_lieu_lien_quan = Column(JSON, nullable=True)

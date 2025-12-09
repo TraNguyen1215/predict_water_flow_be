@@ -3,7 +3,9 @@ from sqlalchemy import select, func
 from src.schemas.nhat_ky import NhatKyCreate
 from typing import Optional
 from src.models.nhat_ky_may_bom import NhatKyMayBom
+from src.models.may_bom import MayBom
 from datetime import timezone, datetime, time, date
+from src.crud import thong_bao as crud_thong_bao
 
 
 def _to_naive_utc(dt):
@@ -15,7 +17,7 @@ def _to_naive_utc(dt):
     return dt
 
 
-async def create_nhat_ky(db: AsyncSession, payload: NhatKyCreate) -> NhatKyMayBom:
+async def create_nhat_ky(db: AsyncSession, payload: NhatKyCreate, ma_nguoi_dung=None) -> NhatKyMayBom:
     obj = NhatKyMayBom(
         ma_may_bom=payload.ma_may_bom,
         thoi_gian_bat=_to_naive_utc(payload.thoi_gian_bat),
@@ -24,6 +26,24 @@ async def create_nhat_ky(db: AsyncSession, payload: NhatKyCreate) -> NhatKyMayBo
     )
     db.add(obj)
     await db.flush()
+    
+    # Tạo thông báo nếu có ma_nguoi_dung
+    if ma_nguoi_dung:
+        await crud_thong_bao.create_notification(
+            db,
+            ma_nguoi_dung,
+            loai="DEVICE",
+            muc_do="INFO",
+            tieu_de="Nhật ký hoạt động máy bơm đã được tạo",
+            noi_dung=f"Nhật ký hoạt động từ {payload.thoi_gian_bat} đến {payload.thoi_gian_tat} đã được lưu.",
+            ma_thiet_bi=payload.ma_may_bom,
+            du_lieu_lien_quan={
+                "thoi_gian_bat": str(payload.thoi_gian_bat),
+                "thoi_gian_tat": str(payload.thoi_gian_tat),
+                "ghi_chu": payload.ghi_chu,
+            },
+        )
+    
     return obj
 
 

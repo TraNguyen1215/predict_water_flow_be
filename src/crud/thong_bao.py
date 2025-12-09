@@ -1,9 +1,34 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, desc, func
 from uuid import UUID
 from src.models.thong_bao import ThongBao
 from src.schemas.thong_bao import ThongBaoCreate, ThongBaoUpdate
+
+
+async def create_notification(
+    db: AsyncSession,
+    ma_nguoi_dung: UUID,
+    loai: str,
+    muc_do: str,
+    tieu_de: str,
+    noi_dung: str,
+    ma_thiet_bi: Optional[int] = None,
+    du_lieu_lien_quan: Optional[Any] = None,
+) -> ThongBao:
+    """Helper function to create notification from other operations"""
+    notification = ThongBao(
+        ma_nguoi_dung=ma_nguoi_dung,
+        ma_thiet_bi=ma_thiet_bi,
+        loai=loai,
+        muc_do=muc_do,
+        tieu_de=tieu_de,
+        noi_dung=noi_dung,
+        du_lieu_lien_quan=du_lieu_lien_quan,
+    )
+    db.add(notification)
+    await db.flush()
+    return notification
 
 
 async def create(db: AsyncSession, obj_in: ThongBaoCreate) -> ThongBao:

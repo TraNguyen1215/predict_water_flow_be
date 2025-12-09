@@ -5,12 +5,26 @@ from src.schemas.sensor import SensorCreate
 from src.models.cam_bien import CamBien
 from src.models.may_bom import MayBom
 from src.models.loai_cam_bien import LoaiCamBien
+from src.crud import thong_bao as crud_thong_bao
 
 
 async def create_cam_bien(db: AsyncSession, ma_nd, payload: SensorCreate) -> CamBien:
     obj = CamBien(ma_nguoi_dung=ma_nd, ten_cam_bien=payload.ten_cam_bien, mo_ta=payload.mo_ta, ngay_lap_dat=payload.ngay_lap_dat, ma_may_bom=payload.ma_may_bom, loai=payload.loai)
     db.add(obj)
     await db.flush()
+    
+    # Tạo thông báo
+    await crud_thong_bao.create_notification(
+        db,
+        ma_nd,
+        loai="DEVICE",
+        muc_do="INFO",
+        tieu_de=f"Cảm biến '{payload.ten_cam_bien}' đã được tạo",
+        noi_dung=f"Cảm biến '{payload.ten_cam_bien}' đã được tạo thành công. {payload.mo_ta or ''}",
+        ma_thiet_bi=payload.ma_may_bom,
+        du_lieu_lien_quan={"ten_cam_bien": payload.ten_cam_bien, "loai": payload.loai},
+    )
+    
     return obj
 
 
@@ -86,12 +100,36 @@ async def update_cam_bien(db: AsyncSession, ma_cam_bien: int, payload: SensorCre
         obj.trang_thai = payload.trang_thai
     obj.loai = payload.loai
     await db.flush()
+    
+    # Tạo thông báo
+    await crud_thong_bao.create_notification(
+        db,
+        obj.ma_nguoi_dung,
+        loai="DEVICE",
+        muc_do="INFO",
+        tieu_de=f"Cảm biến '{payload.ten_cam_bien}' đã được cập nhật",
+        noi_dung=f"Cảm biến '{payload.ten_cam_bien}' đã được cập nhật thành công.",
+        ma_thiet_bi=payload.ma_may_bom,
+        du_lieu_lien_quan={"ten_cam_bien": payload.ten_cam_bien, "loai": payload.loai},
+    )
+    
     return obj
 
 
 async def delete_cam_bien(db: AsyncSession, ma_cam_bien: int):
     obj = await get_cam_bien_by_id(db, ma_cam_bien)
     if obj:
+        # Tạo thông báo trước khi xoá
+        await crud_thong_bao.create_notification(
+            db,
+            obj.ma_nguoi_dung,
+            loai="DEVICE",
+            muc_do="INFO",
+            tieu_de=f"Cảm biến '{obj.ten_cam_bien}' đã được xoá",
+            noi_dung=f"Cảm biến '{obj.ten_cam_bien}' đã được xoá khỏi hệ thống.",
+            ma_thiet_bi=obj.ma_may_bom,
+            du_lieu_lien_quan={"ten_cam_bien": obj.ten_cam_bien},
+        )
         await db.delete(obj)
 
 

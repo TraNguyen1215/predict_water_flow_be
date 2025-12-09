@@ -8,6 +8,7 @@ from src.models.nguoi_dung import NguoiDung
 from src.models.cam_bien import CamBien
 from src.models.loai_cam_bien import LoaiCamBien
 from sqlalchemy import select
+from src.crud import thong_bao as crud_thong_bao
 
 
 async def create_may_bom(db: AsyncSession, ma_nd: uuid.UUID, payload: PumpCreate) -> MayBom:
@@ -21,6 +22,19 @@ async def create_may_bom(db: AsyncSession, ma_nd: uuid.UUID, payload: PumpCreate
     )
     db.add(obj)
     await db.flush()
+    
+    # Tạo thông báo
+    await crud_thong_bao.create_notification(
+        db,
+        ma_nd,
+        loai="DEVICE",
+        muc_do="INFO",
+        tieu_de=f"Máy bơm '{payload.ten_may_bom}' đã được tạo",
+        noi_dung=f"Máy bơm '{payload.ten_may_bom}' đã được tạo thành công. {payload.mo_ta or ''}",
+        ma_thiet_bi=None,
+        du_lieu_lien_quan={"ten_may_bom": payload.ten_may_bom},
+    )
+    
     return obj
 
 
@@ -87,12 +101,36 @@ async def update_may_bom(db: AsyncSession, ma_may_bom: int, payload: PumpCreate)
     obj.trang_thai = payload.trang_thai
     obj.gioi_han_thoi_gian = payload.gioi_han_thoi_gian
     await db.flush()
+    
+    # Tạo thông báo
+    await crud_thong_bao.create_notification(
+        db,
+        obj.ma_nguoi_dung,
+        loai="DEVICE",
+        muc_do="INFO",
+        tieu_de=f"Máy bơm '{payload.ten_may_bom}' đã được cập nhật",
+        noi_dung=f"Máy bơm '{payload.ten_may_bom}' đã được cập nhật thành công.",
+        ma_thiet_bi=ma_may_bom,
+        du_lieu_lien_quan={"ten_may_bom": payload.ten_may_bom},
+    )
+    
     return obj
 
 
 async def delete_may_bom(db: AsyncSession, ma_may_bom: int):
     obj = await get_may_bom_by_id(db, ma_may_bom)
     if obj:
+        # Tạo thông báo trước khi xoá
+        await crud_thong_bao.create_notification(
+            db,
+            obj.ma_nguoi_dung,
+            loai="DEVICE",
+            muc_do="INFO",
+            tieu_de=f"Máy bơm '{obj.ten_may_bom}' đã được xoá",
+            noi_dung=f"Máy bơm '{obj.ten_may_bom}' đã được xoá khỏi hệ thống.",
+            ma_thiet_bi=ma_may_bom,
+            du_lieu_lien_quan={"ten_may_bom": obj.ten_may_bom},
+        )
         await db.delete(obj)
 
 
