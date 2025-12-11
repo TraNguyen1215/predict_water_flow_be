@@ -20,5 +20,6 @@ class DuLieuCamBien(Base):
     mua = Column(Float)
     so_xung = Column(Integer)
     tong_the_tich = Column(Float)
+    tuoi = Column(Integer)  # 0/1
+    giai_doan = Column(String)  # nảy mầm, sinh trưởng, thu hoach
     thoi_gian_tao = Column(DateTime, server_default=func.now())
-    ghi_chu = Column(String)

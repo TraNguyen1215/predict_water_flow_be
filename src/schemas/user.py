@@ -30,11 +30,11 @@ class UserPublic(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    ho_ten: Optional[str]
-    so_dien_thoai: Optional[str]
-    dia_chi: Optional[str]
-    quan_tri_vien: Optional[bool]
-    trang_thai: Optional[bool]
+    ho_ten: Optional[str] = None
+    so_dien_thoai: Optional[str] = None
+    dia_chi: Optional[str] = None
+    quan_tri_vien: Optional[bool] = None
+    trang_thai: Optional[bool] = None
 
 
 class TokenResponse(BaseModel):
