@@ -17,6 +17,8 @@ from src.schemas.cau_hinh_thiet_bi import (
     CauHinhThietBiResponse,
 )
 from src.crud.may_bom import get_may_bom_by_id
+from src.crud.nguoi_dung import get_all_admins, get_by_id as get_user_by_id
+from src.crud.thong_bao import create_notification
 
 router = APIRouter()
 
@@ -159,6 +161,40 @@ async def update_cau_hinh_thiet_bi_endpoint(
         raise HTTPException(status_code=404, detail="Không tìm thấy cấu hình thiết bị")
     
     await update_cau_hinh(db, ma_cau_hinh, payload.dict(exclude_unset=True))
+    await db.commit()
+    
+    # Gửi thông báo tới tất cả admin về cập nhật cấu hình
+    admins = await get_all_admins(db)
+    pump = await get_may_bom_by_id(db, config.ma_thiet_bi)
+    pump_name = pump.ten_may_bom if pump else f"Thiết bị {config.ma_thiet_bi}"
+    
+    for admin in admins:
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=admin.ma_nguoi_dung,
+            loai="INFO",
+            muc_do="MEDIUM",
+            tieu_de="Cấu hình thiết bị đã được cập nhật",
+            noi_dung=f"Cấu hình thiết bị '{pump_name}' vừa được cập nhật thành công bởi quản trị viên.",
+            ma_thiet_bi=config.ma_thiet_bi,
+            du_lieu_lien_quan={"ma_cau_hinh": ma_cau_hinh, "ma_thiet_bi": config.ma_thiet_bi}
+        )
+    
+    # Gửi thông báo tới người dùng sở hữu thiết bị về cập nhật cấu hình
+    if pump:
+        user = await get_user_by_id(db, pump.ma_nguoi_dung)
+        if user:
+            await create_notification(
+                db=db,
+                ma_nguoi_dung=user.ma_nguoi_dung,
+                loai="INFO",
+                muc_do="MEDIUM",
+                tieu_de="Cấu hình thiết bị được cập nhật",
+                noi_dung=f"Cấu hình thiết bị '{pump_name}' của bạn đã được cập nhật bởi quản trị viên.",
+                ma_thiet_bi=config.ma_thiet_bi,
+                du_lieu_lien_quan={"ma_cau_hinh": ma_cau_hinh, "ma_thiet_bi": config.ma_thiet_bi}
+            )
+    
     await db.commit()
     return {"message": "Cập nhật cấu hình thiết bị thành công", "ma_cau_hinh": ma_cau_hinh}
 

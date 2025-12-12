@@ -52,6 +52,13 @@ async def delete_user(db: AsyncSession, ma_nguoi_dung: UUID):
     await db.execute(delete(NguoiDung).where(NguoiDung.ma_nguoi_dung == ma_nguoi_dung))
 
 
+async def get_all_admins(db: AsyncSession) -> List[NguoiDung]:
+    """Lấy tất cả quản trị viên"""
+    q = select(NguoiDung).where(NguoiDung.quan_tri_vien == True)
+    res = await db.execute(q)
+    return res.scalars().all()
+
+
 async def verify_user_by_pump_and_date(db: AsyncSession, ten_dang_nhap: str, ten_may_bom: str, ngay_tuoi_gan_nhat: date) -> Optional[NguoiDung]:
     q = (
         select(NguoiDung)

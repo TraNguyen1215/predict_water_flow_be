@@ -8,7 +8,8 @@ from src.api import deps
 from src.core import security
 from src.core.config import settings
 from src.schemas.user import TokenResponse
-from src.crud.nguoi_dung import get_by_username, create_user, get_by_id, update_password
+from src.crud.nguoi_dung import get_by_username, create_user, get_by_id, update_password, get_all_admins
+from src.crud.thong_bao import create_notification
 
 router = APIRouter()
 
@@ -34,6 +35,20 @@ async def register_nguoi_dung(
     mat_khau_hash, salt = security.get_password_hash_and_salt(mat_khau)
 
     user = await create_user(db, ten_dang_nhap=ten_dang_nhap, mat_khau_hash=mat_khau_hash, salt=salt, ho_ten=ho_ten)
+    await db.commit()
+
+    # Gửi thông báo tới tất cả admin về người dùng mới đăng ký
+    admins = await get_all_admins(db)
+    for admin in admins:
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=admin.ma_nguoi_dung,
+            loai="INFO",
+            muc_do="MEDIUM",
+            tieu_de="Người dùng mới đăng ký",
+            noi_dung=f"Người dùng '{ten_dang_nhap}' vừa đăng ký tài khoản mới. Họ tên: {ho_ten or 'Chưa cập nhật'}",
+            du_lieu_lien_quan={"ten_dang_nhap": ten_dang_nhap, "ho_ten": ho_ten}
+        )
     await db.commit()
 
     return {"message": "Đăng ký thành công", "ten_dang_nhap": user.ten_dang_nhap}
