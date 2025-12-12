@@ -10,7 +10,6 @@ class ThongBaoBase(BaseModel):
     tieu_de: str
     noi_dung: str
     da_xem: bool = False
-    gui_sms: bool = False  # Whether to send SMS (phone fetched from user)
     du_lieu_lien_quan: Optional[Any] = None
 
 
@@ -25,7 +24,6 @@ class ThongBaoUpdate(BaseModel):
     tieu_de: Optional[str] = None
     noi_dung: Optional[str] = None
     da_xem: Optional[bool] = None
-    gui_sms: Optional[bool] = None
     du_lieu_lien_quan: Optional[Any] = None
 
 
@@ -33,7 +31,5 @@ class ThongBaoResponse(ThongBaoBase):
     ma_thong_bao: int
     ma_nguoi_dung: UUID
     ma_thiet_bi: Optional[int]
-    so_dien_thoai: Optional[str]
-    gui_sms: bool
     thoi_gian: datetime
     thoi_gian_cap_nhat: Optional[datetime]
