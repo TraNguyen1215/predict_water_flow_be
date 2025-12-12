@@ -7,6 +7,8 @@ from src.api import deps
 from src.schemas.pump import PumpCreate, PumpOut
 from src.schemas.sensor import SensorOut
 from src.crud.may_bom import *
+from src.crud.nguoi_dung import get_all_admins, get_by_id as get_user_by_id
+from src.crud.thong_bao import create_notification
 
 router = APIRouter()
 
@@ -31,6 +33,25 @@ async def create_may_bom_endpoint(
     ma = await create_may_bom(db, current_user.ma_nguoi_dung, payload)
     
     await db.commit()
+    
+    # Gửi thông báo tới tất cả admin về tạo máy bơm
+    admins = await get_all_admins(db)
+    user = await get_user_by_id(db, current_user.ma_nguoi_dung)
+    user_name = user.ho_ten or user.ten_dang_nhap if user else "Người dùng"
+    
+    for admin in admins:
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=admin.ma_nguoi_dung,
+            loai="INFO",
+            muc_do="MEDIUM",
+            tieu_de="Thiết bị mới được gán",
+            noi_dung=f"Người dùng '{user_name}' vừa được gán thiết bị '{payload.ten_may_bom}'.",
+            ma_thiet_bi=getattr(ma, "ma_may_bom"),
+            du_lieu_lien_quan={"ma_may_bom": getattr(ma, "ma_may_bom"), "ten_may_bom": payload.ten_may_bom}
+        )
+    await db.commit()
+    
     return PumpOut(
         ma_may_bom=getattr(ma, "ma_may_bom"),
         ten_may_bom=payload.ten_may_bom,

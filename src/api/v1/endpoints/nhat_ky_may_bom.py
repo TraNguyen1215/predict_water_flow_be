@@ -1,15 +1,49 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, Body, Query, HTTPException
 import math
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import text, select, func
 from src.api import deps
 from src.schemas.nhat_ky import NhatKyCreate, NhatKyOut
 from src.crud.nhat_ky_may_bom import create_nhat_ky, list_nhat_ky_for_pump, get_nhat_ky_by_id, update_nhat_ky, delete_nhat_ky
 from src.crud.may_bom import get_may_bom_by_id
+from src.crud.thong_bao import create_notification
+from src.models.nhat_ky_may_bom import NhatKyMayBom
 
 router = APIRouter()
+
+
+async def _check_abnormal_watering_frequency(db: AsyncSession, ma_may_bom: int, ma_nguoi_dung):
+    """Kiểm tra nếu có nhiều lần tưới bất thường trong ngày"""
+    today = date.today()
+    
+    # Đếm số lần tưới hôm nay
+    q = (
+        select(func.count())
+        .select_from(NhatKyMayBom)
+        .where(
+            NhatKyMayBom.ma_may_bom == ma_may_bom,
+            func.date(NhatKyMayBom.thoi_gian_bat) == today
+        )
+    )
+    res = await db.execute(q)
+    watering_count = res.scalar() or 0
+    
+    # Nếu có hơn 5 lần tưới trong ngày, cảnh báo
+    if watering_count > 5:
+        pump = await get_may_bom_by_id(db, ma_may_bom)
+        pump_name = pump.ten_may_bom if pump else f"Thiết bị {ma_may_bom}"
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=ma_nguoi_dung,
+            loai="ALERT",
+            muc_do="MEDIUM",
+            tieu_de="Nhiều lần tưới bất thường",
+            noi_dung=f"Thiết bị '{pump_name}' đã tưới {watering_count} lần trong hôm nay. Vui lòng kiểm tra cấu hình hệ thống tưới.",
+            ma_thiet_bi=ma_may_bom,
+            du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "so_lan_tuoi": watering_count}
+        )
 
 
 @router.post("/", status_code=201, response_model=NhatKyOut)
@@ -28,6 +62,11 @@ async def create_nhat_ky_endpoint(
 
     obj = await create_nhat_ky(db, payload)
     await db.commit()
+    
+    # Kiểm tra cảnh báo tưới bất thường
+    await _check_abnormal_watering_frequency(db, payload.ma_may_bom, current_user.ma_nguoi_dung)
+    await db.commit()
+    
     return NhatKyOut(
         ma_nhat_ky=getattr(obj, "ma_nhat_ky"), # getattr(obj, "ma_nhat_ky", None),: là để tránh lỗi nếu obj không có thuộc tính ma_nhat_ky
         ma_may_bom=getattr(obj, "ma_may_bom", None),

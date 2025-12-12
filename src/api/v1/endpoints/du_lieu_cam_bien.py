@@ -1,10 +1,10 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, Body, Query, HTTPException
 import math
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import text, select, func, desc
 from src.api import deps
 from src.schemas.data import DataOut, DataCreate
 from src.crud.du_lieu_cam_bien import (
@@ -15,8 +15,60 @@ from src.crud.du_lieu_cam_bien import (
     update_du_lieu,
 )
 from src.crud.may_bom import get_may_bom_by_id
+from src.crud.thong_bao import create_notification
+from src.models.du_lieu_cam_bien import DuLieuCamBien
+from src.models.may_bom import MayBom
 
 router = APIRouter()
+
+
+async def _check_sensor_data_timeout(db: AsyncSession, ma_may_bom: int, ma_nguoi_dung: uuid.UUID):
+    """Kiểm tra nếu cảm biến không có dữ liệu trong >5 phút"""
+    # Lấy dữ liệu cảm biến gần nhất
+    from sqlalchemy import desc
+    q = (
+        text("""
+            SELECT thoi_gian_tao FROM du_lieu_cam_bien 
+            WHERE ma_may_bom = :ma_may_bom 
+            ORDER BY thoi_gian_tao DESC 
+            LIMIT 1
+        """)
+    )
+    res = await db.execute(q, {"ma_may_bom": ma_may_bom})
+    last_data_time = res.scalar()
+    
+    if last_data_time:
+        time_diff = datetime.utcnow() - last_data_time
+        if time_diff.total_seconds() > 300:  # 5 phút = 300 giây
+            pump = await get_may_bom_by_id(db, ma_may_bom)
+            pump_name = pump.ten_may_bom if pump else f"Thiết bị {ma_may_bom}"
+            await create_notification(
+                db=db,
+                ma_nguoi_dung=ma_nguoi_dung,
+                loai="ALERT",
+                muc_do="HIGH",
+                tieu_de="Cảm biến mất dữ liệu",
+                noi_dung=f"Cảm biến của thiết bị '{pump_name}' không có dữ liệu trong hơn 5 phút. Vui lòng kiểm tra kết nối thiết bị.",
+                ma_thiet_bi=ma_may_bom,
+                du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "thoi_gian_cuoi": str(last_data_time)}
+            )
+
+
+async def _check_abnormal_flow(db: AsyncSession, ma_may_bom: int, ma_nguoi_dung: uuid.UUID, luu_luong_nuoc: Optional[float]):
+    """Kiểm tra nếu lưu lượng tưới bất thường"""
+    if luu_luong_nuoc is None or luu_luong_nuoc < 0:
+        pump = await get_may_bom_by_id(db, ma_may_bom)
+        pump_name = pump.ten_may_bom if pump else f"Thiết bị {ma_may_bom}"
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=ma_nguoi_dung,
+            loai="ALERT",
+            muc_do="MEDIUM",
+            tieu_de="Lưu lượng nước bất thường",
+            noi_dung=f"Thiết bị '{pump_name}' ghi nhận lưu lượng nước bất thường. Vui lòng kiểm tra lại.",
+            ma_thiet_bi=ma_may_bom,
+            du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "luu_luong_nuoc": luu_luong_nuoc}
+        )
 
 
 @router.get("/", status_code=200)
@@ -177,4 +229,15 @@ async def update_du_lieu(
 
     await update_du_lieu(db, ma_du_lieu, updates)
     await db.commit()
+    
+    # Kiểm tra cảnh báo
+    r = await get_du_lieu_by_id(db, ma_du_lieu)
+    if r:
+        # Kiểm tra timeout cảm biến
+        await _check_sensor_data_timeout(db, r.ma_may_bom, r.ma_nguoi_dung)
+        # Kiểm tra lưu lượng bất thường
+        if getattr(payload, "luu_luong_nuoc", None) is not None:
+            await _check_abnormal_flow(db, r.ma_may_bom, r.ma_nguoi_dung, payload.luu_luong_nuoc)
+        await db.commit()
+    
     return {"message": "Cập nhật dữ liệu thành công", "ma_du_lieu": ma_du_lieu}

@@ -12,8 +12,9 @@ from src.api import deps
 from src.schemas.pump import PumpOut
 from src.schemas.sensor import SensorOut
 from src.schemas.user import UserPublic, UserUpdate
-from src.crud.nguoi_dung import get_by_username, get_by_id, update_avatar, delete_user, list_users, update_password
+from src.crud.nguoi_dung import get_by_username, get_by_id, update_avatar, delete_user, list_users, update_password, get_all_admins
 from src.core import security
+from src.crud.thong_bao import create_notification
 
 router = APIRouter()
 
@@ -224,7 +225,23 @@ async def update_nguoi_dung(
     if payload.dia_chi is not None:
         nguoi_dung.dia_chi = payload.dia_chi
     if payload.quan_tri_vien is not None:
+        old_admin_status = nguoi_dung.quan_tri_vien
         nguoi_dung.quan_tri_vien = payload.quan_tri_vien
+        
+        # Gửi thông báo nếu có thay đổi quyền admin
+        if old_admin_status != payload.quan_tri_vien:
+            admins = await get_all_admins(db)
+            status_text = "được thăng cấp thành quản trị viên" if payload.quan_tri_vien else "bị hạ cấp khỏi quyền quản trị viên"
+            for admin in admins:
+                await create_notification(
+                    db=db,
+                    ma_nguoi_dung=admin.ma_nguoi_dung,
+                    loai="INFO",
+                    muc_do="MEDIUM",
+                    tieu_de="Thay đổi quyền quản trị viên",
+                    noi_dung=f"Người dùng '{ten_dang_nhap}' vừa {status_text}.",
+                    du_lieu_lien_quan={"ten_dang_nhap": ten_dang_nhap, "quan_tri_vien": payload.quan_tri_vien}
+                )
     if getattr(payload, "trang_thai", None) is not None:
         nguoi_dung.trang_thai = payload.trang_thai
    
@@ -285,6 +302,21 @@ async def delete_nguoi_dung(
 
     await delete_user(db, nguoi_dung.ma_nguoi_dung)
     await db.commit()
+    
+    # Gửi thông báo tới tất cả admin về xóa user
+    admins = await get_all_admins(db)
+    for admin in admins:
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=admin.ma_nguoi_dung,
+            loai="INFO",
+            muc_do="MEDIUM",
+            tieu_de="Người dùng được xoá",
+            noi_dung=f"Người dùng '{ten_dang_nhap}' (họ tên: {nguoi_dung.ho_ten or 'Chưa cập nhật'}) vừa bị xoá khỏi hệ thống.",
+            du_lieu_lien_quan={"ten_dang_nhap": ten_dang_nhap, "ma_nguoi_dung": str(nguoi_dung.ma_nguoi_dung)}
+        )
+    await db.commit()
+    
     return {
         "message": "Xoá người dùng thành công!",
         "ten_dang_nhap": ten_dang_nhap,

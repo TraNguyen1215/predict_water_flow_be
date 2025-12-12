@@ -15,6 +15,8 @@ from src.crud.mo_hinh_du_bao import (
     list_mo_hinh_du_bao,
     update_mo_hinh_du_bao,
 )
+from src.crud.nguoi_dung import get_all_admins
+from src.crud.thong_bao import create_notification
 
 router = APIRouter()
 
@@ -105,6 +107,21 @@ async def update_mo_hinh_du_bao_endpoint(
         raise HTTPException(status_code=404, detail="Không tìm thấy mô hình dự báo")
     await db.commit()
     await db.refresh(obj)
+    
+    # Gửi thông báo tới tất cả admin về cập nhật mô hình
+    admins = await get_all_admins(db)
+    for admin in admins:
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=admin.ma_nguoi_dung,
+            loai="INFO",
+            muc_do="MEDIUM",
+            tieu_de="Mô hình dự báo AI được cập nhật",
+            noi_dung=f"Mô hình dự báo '{obj.ten_mo_hinh}' (phiên bản {obj.phien_ban}) vừa được cập nhật.",
+            du_lieu_lien_quan={"ma_mo_hinh": ma_mo_hinh, "ten_mo_hinh": obj.ten_mo_hinh}
+        )
+    await db.commit()
+    
     return _to_schema(obj)
 
 
