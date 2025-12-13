@@ -39,6 +39,20 @@ async def create_cau_hinh_thiet_bi_endpoint(
     if not pump:
         raise HTTPException(status_code=404, detail="Không tìm thấy thiết bị (may_bom)")
     
+    existing_config = await get_cau_hinh_by_thiet_bi(db, payload.ma_thiet_bi)
+    if existing_config:
+        # tạo thông báo lỗi nếu đã có cấu hình cho thiết bị này
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=current_user.ma_nguoi_dung,
+            loai="ERROR",
+            muc_do="HIGH",
+            tieu_de="Cấu hình thiết bị trùng",
+            noi_dung=f"Thiết bị '{pump.ten_may_bom}' đã có cấu hình. Mỗi thiết bị chỉ được tạo 1 cấu hình.",
+            du_lieu_lien_quan={"ma_thiet_bi": payload.ma_thiet_bi}
+        )
+        raise HTTPException(status_code=400, detail="Thiết bị này đã có cấu hình. Mỗi thiết bị chỉ được tạo 1 cấu hình.")
+    
     config = await create_cau_hinh_thiet_bi(db, payload.ma_thiet_bi, payload.dict())
     await db.commit()
     return CauHinhThietBiResponse(
@@ -62,8 +76,13 @@ async def list_cau_hinh_thiet_bi_endpoint(
     offset: int = Query(0, ge=0),
     page: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
-    """Danh sách cấu hình thiết bị."""
+    """Danh sách cấu hình thiết bị. Chỉ quản trị viên mới có quyền truy cập."""
+    # Kiểm tra quyền quản trị viên
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới có quyền xem danh sách cấu hình thiết bị")
+    
     if page is not None:
         offset = (page - 1) * limit
 
@@ -100,8 +119,13 @@ async def list_cau_hinh_thiet_bi_endpoint(
 async def get_cau_hinh_thiet_bi_endpoint(
     ma_cau_hinh: int,
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
-    """Lấy cấu hình thiết bị theo mã cấu hình."""
+    """Lấy cấu hình thiết bị theo mã cấu hình. Chỉ quản trị viên mới có quyền truy cập."""
+    # Kiểm tra quyền quản trị viên
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới có quyền xem cấu hình thiết bị")
+    
     config = await get_cau_hinh_by_id(db, ma_cau_hinh)
     if not config:
         raise HTTPException(status_code=404, detail="Không tìm thấy cấu hình thiết bị")
@@ -124,8 +148,13 @@ async def get_cau_hinh_thiet_bi_endpoint(
 async def get_cau_hinh_by_thiet_bi_endpoint(
     ma_thiet_bi: int,
     db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
 ):
-    """Lấy cấu hình thiết bị theo mã thiết bị (ma_thiet_bi)."""
+    """Lấy cấu hình thiết bị theo mã thiết bị (ma_thiet_bi). Chỉ quản trị viên mới có quyền truy cập."""
+    # Kiểm tra quyền quản trị viên
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới có quyền xem cấu hình thiết bị")
+    
     config = await get_cau_hinh_by_thiet_bi(db, ma_thiet_bi)
     if not config:
         raise HTTPException(status_code=404, detail="Không tìm thấy cấu hình thiết bị")

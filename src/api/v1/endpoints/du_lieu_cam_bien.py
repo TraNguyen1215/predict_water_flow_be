@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Body, Query, HTTPException
 import math
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, select, func, desc
+from sqlalchemy import text
 from src.api import deps
 from src.schemas.data import DataOut, DataCreate
 from src.crud.du_lieu_cam_bien import (
@@ -16,8 +16,6 @@ from src.crud.du_lieu_cam_bien import (
 )
 from src.crud.may_bom import get_may_bom_by_id
 from src.crud.thong_bao import create_notification
-from src.models.du_lieu_cam_bien import DuLieuCamBien
-from src.models.may_bom import MayBom
 
 router = APIRouter()
 
@@ -68,6 +66,79 @@ async def _check_abnormal_flow(db: AsyncSession, ma_may_bom: int, ma_nguoi_dung:
             noi_dung=f"Thiết bị '{pump_name}' ghi nhận lưu lượng nước bất thường. Vui lòng kiểm tra lại.",
             ma_thiet_bi=ma_may_bom,
             du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "luu_luong_nuoc": luu_luong_nuoc}
+        )
+
+
+async def _check_humidity_trend(db: AsyncSession, ma_may_bom: int, ma_nguoi_dung: uuid.UUID):
+    """Kiểm tra xu hướng độ ẩm giảm trong 30 phút"""
+    from sqlalchemy import desc
+    thirty_minutes_ago = datetime.utcnow() - timedelta(minutes=30)
+    
+    # Lấy dữ liệu độ ẩm từ 30 phút trước
+    q = (
+        text("""
+            SELECT do_am, thoi_gian_tao FROM du_lieu_cam_bien 
+            WHERE ma_may_bom = :ma_may_bom 
+            AND thoi_gian_tao >= :thirty_minutes_ago
+            ORDER BY thoi_gian_tao ASC
+        """)
+    )
+    res = await db.execute(q, {"ma_may_bom": ma_may_bom, "thirty_minutes_ago": thirty_minutes_ago})
+    humidity_data = res.fetchall()
+    
+    if len(humidity_data) >= 2:
+        first_humidity = humidity_data[0][0]
+        last_humidity = humidity_data[-1][0]
+        
+        # Nếu độ ẩm giảm hơn 10% trong 30 phút
+        if first_humidity is not None and last_humidity is not None and (first_humidity - last_humidity) > 10:
+            pump = await get_may_bom_by_id(db, ma_may_bom)
+            pump_name = pump.ten_may_bom if pump else f"Thiết bị {ma_may_bom}"
+            await create_notification(
+                db=db,
+                ma_nguoi_dung=ma_nguoi_dung,
+                loai="WARNING",
+                muc_do="MEDIUM",
+                tieu_de="Xu hướng độ ẩm giảm",
+                noi_dung=f"Độ ẩm đất của thiết bị '{pump_name}' đang giảm nhanh trong 30 phút gần đây (từ {first_humidity}% xuống {last_humidity}%). Cây có thể đang khô nước.",
+                ma_thiet_bi=ma_may_bom,
+                du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "humidity_start": first_humidity, "humidity_end": last_humidity}
+            )
+
+
+async def _check_flow_decrease_trend(db: AsyncSession, ma_may_bom: int, ma_nguoi_dung: uuid.UUID, current_flow: Optional[float]):
+    """Kiểm tra xu hướng lưu lượng giảm so với trung bình"""
+    if current_flow is None or current_flow < 0:
+        return
+    
+    # Lấy trung bình lưu lượng trong 7 ngày gần đây
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    
+    q = (
+        text("""
+            SELECT AVG(luu_luong_nuoc) as avg_flow FROM du_lieu_cam_bien 
+            WHERE ma_may_bom = :ma_may_bom 
+            AND thoi_gian_tao >= :seven_days_ago
+            AND luu_luong_nuoc > 0
+        """)
+    )
+    res = await db.execute(q, {"ma_may_bom": ma_may_bom, "seven_days_ago": seven_days_ago})
+    avg_flow_row = res.fetchone()
+    avg_flow = avg_flow_row[0] if avg_flow_row and avg_flow_row[0] else 0
+    
+    # Nếu lưu lượng hiện tại kém 30% so với trung bình
+    if avg_flow > 0 and current_flow < (avg_flow * 0.7):
+        pump = await get_may_bom_by_id(db, ma_may_bom)
+        pump_name = pump.ten_may_bom if pump else f"Thiết bị {ma_may_bom}"
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=ma_nguoi_dung,
+            loai="WARNING",
+            muc_do="MEDIUM",
+            tieu_de="Xu hướng lưu lượng giảm",
+            noi_dung=f"Lưu lượng nước của thiết bị '{pump_name}' đang giảm so với bình thường (hiện tại: {current_flow}, trung bình: {avg_flow:.1f}). Có thể có vấn đề với hệ thống tưới.",
+            ma_thiet_bi=ma_may_bom,
+            du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "current_flow": current_flow, "avg_flow": avg_flow}
         )
 
 
@@ -238,6 +309,10 @@ async def update_du_lieu(
         # Kiểm tra lưu lượng bất thường
         if getattr(payload, "luu_luong_nuoc", None) is not None:
             await _check_abnormal_flow(db, r.ma_may_bom, r.ma_nguoi_dung, payload.luu_luong_nuoc)
+            # Kiểm tra xu hướng lưu lượng giảm
+            await _check_flow_decrease_trend(db, r.ma_may_bom, r.ma_nguoi_dung, payload.luu_luong_nuoc)
+        # Kiểm tra xu hướng độ ẩm giảm
+        await _check_humidity_trend(db, r.ma_may_bom, r.ma_nguoi_dung)
         await db.commit()
     
     return {"message": "Cập nhật dữ liệu thành công", "ma_du_lieu": ma_du_lieu}

@@ -46,6 +46,54 @@ async def _check_abnormal_watering_frequency(db: AsyncSession, ma_may_bom: int, 
         )
 
 
+async def _check_watering_frequency_increase(db: AsyncSession, ma_may_bom: int, ma_nguoi_dung):
+    """Kiểm tra nếu tần suất tưới tăng hơn bình thường"""
+    today = date.today()
+    
+    # Đếm số lần tưới hôm nay
+    q_today = (
+        select(func.count())
+        .select_from(NhatKyMayBom)
+        .where(
+            NhatKyMayBom.ma_may_bom == ma_may_bom,
+            func.date(NhatKyMayBom.thoi_gian_bat) == today
+        )
+    )
+    res_today = await db.execute(q_today)
+    today_count = res_today.scalar() or 0
+    
+    # Lấy trung bình số lần tưới mỗi ngày trong 7 ngày gần đây (không tính hôm nay)
+    seven_days_ago = today - timedelta(days=7)
+    q_avg = (
+        select(func.avg(func.count(NhatKyMayBom.ma_nhat_ky)))
+        .select_from(NhatKyMayBom)
+        .where(
+            NhatKyMayBom.ma_may_bom == ma_may_bom,
+            func.date(NhatKyMayBom.thoi_gian_bat) >= seven_days_ago,
+            func.date(NhatKyMayBom.thoi_gian_bat) < today
+        )
+        .group_by(func.date(NhatKyMayBom.thoi_gian_bat))
+    )
+    res_avg = await db.execute(q_avg)
+    avg_records = res_avg.fetchall()
+    avg_count = sum(r[0] for r in avg_records if r[0]) / len(avg_records) if avg_records else 0
+    
+    # Nếu số lần tưới hôm nay tăng hơn 50% so với trung bình
+    if avg_count > 0 and today_count > (avg_count * 1.5):
+        pump = await get_may_bom_by_id(db, ma_may_bom)
+        pump_name = pump.ten_may_bom if pump else f"Thiết bị {ma_may_bom}"
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=ma_nguoi_dung,
+            loai="WARNING",
+            muc_do="MEDIUM",
+            tieu_de="Tần suất tưới tăng hơn bình thường",
+            noi_dung=f"Thiết bị '{pump_name}' đã tưới {today_count} lần hôm nay, nhiều hơn bình thường ({avg_count:.1f} lần/ngày). Vui lòng kiểm tra cấu hình.",
+            ma_thiet_bi=ma_may_bom,
+            du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "today_count": today_count, "avg_count": avg_count}
+        )
+
+
 @router.post("/", status_code=201, response_model=NhatKyOut)
 async def create_nhat_ky_endpoint(
     payload: NhatKyCreate,
@@ -65,6 +113,8 @@ async def create_nhat_ky_endpoint(
     
     # Kiểm tra cảnh báo tưới bất thường
     await _check_abnormal_watering_frequency(db, payload.ma_may_bom, current_user.ma_nguoi_dung)
+    # Kiểm tra tần suất tưới tăng
+    await _check_watering_frequency_increase(db, payload.ma_may_bom, current_user.ma_nguoi_dung)
     await db.commit()
     
     return NhatKyOut(
