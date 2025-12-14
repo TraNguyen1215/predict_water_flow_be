@@ -1,6 +1,6 @@
 from typing import List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, desc, func
+from sqlalchemy import select, update as sa_update, delete as sa_delete, desc, func, or_
 from uuid import UUID
 from src.models.thong_bao import ThongBao
 from src.schemas.thong_bao import ThongBaoCreate, ThongBaoUpdate
@@ -8,7 +8,7 @@ from src.schemas.thong_bao import ThongBaoCreate, ThongBaoUpdate
 
 async def create_notification(
     db: AsyncSession,
-    ma_nguoi_dung: UUID,
+    ma_nguoi_dung: Optional[UUID],
     loai: str,
     muc_do: str,
     tieu_de: str,
@@ -61,7 +61,7 @@ async def get_by_user(
 ) -> tuple[List[ThongBao], int]:
     # Get count
     count_q = select(func.count(ThongBao.ma_thong_bao)).where(
-        ThongBao.ma_nguoi_dung == ma_nguoi_dung
+        or_(ThongBao.ma_nguoi_dung == ma_nguoi_dung, ThongBao.ma_nguoi_dung.is_(None))
     )
     count_res = await db.execute(count_q)
     total = count_res.scalar() or 0
@@ -69,7 +69,7 @@ async def get_by_user(
     # Get data
     q = (
         select(ThongBao)
-        .where(ThongBao.ma_nguoi_dung == ma_nguoi_dung)
+        .where(or_(ThongBao.ma_nguoi_dung == ma_nguoi_dung, ThongBao.ma_nguoi_dung.is_(None)))
         .order_by(desc(ThongBao.thoi_gian_tao))
         .offset(skip)
         .limit(limit)
@@ -83,7 +83,7 @@ async def get_unread_by_user(
 ) -> tuple[List[ThongBao], int]:
     # Get count
     count_q = select(func.count(ThongBao.ma_thong_bao)).where(
-        (ThongBao.ma_nguoi_dung == ma_nguoi_dung) & (ThongBao.da_xem == False)
+        (or_(ThongBao.ma_nguoi_dung == ma_nguoi_dung, ThongBao.ma_nguoi_dung.is_(None))) & (ThongBao.da_xem == False)
     )
     count_res = await db.execute(count_q)
     total = count_res.scalar() or 0
@@ -92,7 +92,7 @@ async def get_unread_by_user(
     q = (
         select(ThongBao)
         .where(
-            (ThongBao.ma_nguoi_dung == ma_nguoi_dung) & (ThongBao.da_xem == False)
+            (or_(ThongBao.ma_nguoi_dung == ma_nguoi_dung, ThongBao.ma_nguoi_dung.is_(None))) & (ThongBao.da_xem == False)
         )
         .order_by(desc(ThongBao.thoi_gian_tao))
         .offset(skip)
@@ -105,7 +105,7 @@ async def get_unread_by_user(
 async def count_unread_by_user(db: AsyncSession, ma_nguoi_dung: UUID) -> int:
     q = select(
         func.count(ThongBao.ma_thong_bao)
-    ).where((ThongBao.ma_nguoi_dung == ma_nguoi_dung) & (ThongBao.da_xem == False))
+    ).where((or_(ThongBao.ma_nguoi_dung == ma_nguoi_dung, ThongBao.ma_nguoi_dung.is_(None))) & (ThongBao.da_xem == False))
     res = await db.execute(q)
     return res.scalar() or 0
 
@@ -119,7 +119,7 @@ async def update(
 
     update_data = obj_in.dict(exclude_unset=True)
     q = (
-        update(ThongBao)
+        sa_update(ThongBao)
         .where(ThongBao.ma_thong_bao == ma_thong_bao)
         .values(**update_data)
     )
@@ -131,7 +131,7 @@ async def update(
 
 async def mark_as_read(db: AsyncSession, ma_thong_bao: int) -> Optional[ThongBao]:
     q = (
-        update(ThongBao)
+        sa_update(ThongBao)
         .where(ThongBao.ma_thong_bao == ma_thong_bao)
         .values(da_xem=True)
     )
@@ -142,8 +142,11 @@ async def mark_as_read(db: AsyncSession, ma_thong_bao: int) -> Optional[ThongBao
 
 async def mark_all_as_read(db: AsyncSession, ma_nguoi_dung: UUID) -> int:
     q = (
-        update(ThongBao)
-        .where((ThongBao.ma_nguoi_dung == ma_nguoi_dung) & (ThongBao.da_xem == False))
+        sa_update(ThongBao)
+        .where(
+            (or_(ThongBao.ma_nguoi_dung == ma_nguoi_dung, ThongBao.ma_nguoi_dung.is_(None))) & 
+            (ThongBao.da_xem == False)
+        )
         .values(da_xem=True)
     )
     res = await db.execute(q)
@@ -152,14 +155,14 @@ async def mark_all_as_read(db: AsyncSession, ma_nguoi_dung: UUID) -> int:
 
 
 async def delete(db: AsyncSession, ma_thong_bao: int) -> bool:
-    q = delete(ThongBao).where(ThongBao.ma_thong_bao == ma_thong_bao)
+    q = sa_delete(ThongBao).where(ThongBao.ma_thong_bao == ma_thong_bao)
     res = await db.execute(q)
     await db.commit()
     return res.rowcount > 0
 
 
 async def delete_by_user(db: AsyncSession, ma_nguoi_dung: UUID) -> int:
-    q = delete(ThongBao).where(ThongBao.ma_nguoi_dung == ma_nguoi_dung)
+    q = sa_delete(ThongBao).where(ThongBao.ma_nguoi_dung == ma_nguoi_dung)
     res = await db.execute(q)
     await db.commit()
     return res.rowcount

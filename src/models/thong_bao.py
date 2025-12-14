@@ -9,7 +9,7 @@ class ThongBao(Base):
     __tablename__ = "thong_bao"
 
     ma_thong_bao = Column(Integer, primary_key=True, autoincrement=True)
-    ma_nguoi_dung = Column(UUID(as_uuid=True), nullable=False)
+    ma_nguoi_dung = Column(UUID(as_uuid=True), nullable=True)
     ma_thiet_bi = Column(Integer, nullable=True)
     loai = Column(String, nullable=False)  # ALERT, INFO, WARNING, DEVICE, FORECAST
     muc_do = Column(String, nullable=False)  # LOW, MEDIUM, HIGH, CRITICAL

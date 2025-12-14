@@ -14,8 +14,8 @@ class PumpMinimal(BaseModel):
 
 class PumpCreate(BaseModel):
     ten_may_bom: str
-    mo_ta: Optional[str]
-    che_do: Optional[int]
+    mo_ta: Optional[str] = None
+    che_do: Optional[int] = None
     trang_thai: Optional[bool] = True
     gioi_han_thoi_gian: Optional[bool] = True
 

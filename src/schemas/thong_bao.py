@@ -14,7 +14,7 @@ class ThongBaoBase(BaseModel):
 
 
 class ThongBaoCreate(ThongBaoBase):
-    ma_nguoi_dung: UUID
+    ma_nguoi_dung: Optional[UUID] = None
     ma_thiet_bi: Optional[int] = None
 
 

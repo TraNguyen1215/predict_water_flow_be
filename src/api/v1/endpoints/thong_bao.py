@@ -1,5 +1,6 @@
 from typing import Optional
 import math
+from uuid import UUID
 from datetime import datetime, timedelta, date
 from fastapi import APIRouter, Depends, Query, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -175,6 +176,39 @@ async def get_thong_bao_list(
     }
 
 
+@router.get("/user/{ma_nguoi_dung}", status_code=200)
+async def get_thong_bao_by_user(
+    ma_nguoi_dung: UUID,
+    limit: int = Query(50, ge=1),
+    offset: int = Query(0, ge=0),
+    page: Optional[int] = Query(None, ge=1),
+    db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
+):
+    """Lấy danh sách thông báo theo ma_nguoi_dung (Dành cho admin hoặc chính chủ)"""
+    if current_user.ma_nguoi_dung != ma_nguoi_dung and not getattr(current_user, "quan_tri_vien", False):
+         raise HTTPException(status_code=403, detail="Bạn không có quyền xem thông báo của người khác")
+
+    if page is not None:
+        offset = (page - 1) * limit
+
+    thong_baos, total = await crud_thong_bao.get_by_user(
+        db, ma_nguoi_dung, skip=offset, limit=limit
+    )
+    
+    page = (offset // limit) + 1 if limit > 0 else 1
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    
+    return {
+        "data": thong_baos,
+        "limit": limit,
+        "offset": offset,
+        "page": page,
+        "total_pages": total_pages,
+        "total": total,
+    }
+
+
 @router.get("/unread", status_code=200)
 async def get_unread_thong_bao(
     limit: int = Query(50, ge=1),
@@ -225,7 +259,7 @@ async def get_thong_bao_detail(
     if not thong_bao:
         raise HTTPException(status_code=404, detail="Thông báo không tồn tại")
 
-    if thong_bao.ma_nguoi_dung != current_user.ma_nguoi_dung:
+    if thong_bao.ma_nguoi_dung != current_user.ma_nguoi_dung and thong_bao.ma_nguoi_dung is not None:
         raise HTTPException(status_code=403, detail="Bạn không có quyền xem thông báo này")
 
     return thong_bao
@@ -261,7 +295,7 @@ async def mark_as_read(
     if not thong_bao:
         raise HTTPException(status_code=404, detail="Thông báo không tồn tại")
 
-    if thong_bao.ma_nguoi_dung != current_user.ma_nguoi_dung:
+    if thong_bao.ma_nguoi_dung != current_user.ma_nguoi_dung and thong_bao.ma_nguoi_dung is not None:
         raise HTTPException(status_code=403, detail="Bạn không có quyền đánh dấu thông báo này")
 
     updated = await crud_thong_bao.mark_as_read(db, ma_thong_bao)
@@ -278,6 +312,16 @@ async def mark_all_as_read(
     return {"count": count}
 
 
+@router.delete("/delete-all", status_code=200)
+async def delete_all_thong_bao(
+    db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
+):
+    """Xoá tất cả thông báo của người dùng"""
+    count = await crud_thong_bao.delete_by_user(db, current_user.ma_nguoi_dung)
+    return {"deleted_count": count}
+
+
 @router.delete("/{ma_thong_bao}", status_code=200)
 async def delete_thong_bao(
     ma_thong_bao: int,
@@ -290,7 +334,10 @@ async def delete_thong_bao(
         raise HTTPException(status_code=404, detail="Thông báo không tồn tại")
 
     if thong_bao.ma_nguoi_dung != current_user.ma_nguoi_dung:
-        raise HTTPException(status_code=403, detail="Bạn không có quyền xoá thông báo này")
+        if thong_bao.ma_nguoi_dung is None and getattr(current_user, "quan_tri_vien", False):
+            pass
+        else:
+            raise HTTPException(status_code=403, detail="Bạn không có quyền xoá thông báo này")
 
     success = await crud_thong_bao.delete(db, ma_thong_bao)
     return {"deleted": success}
