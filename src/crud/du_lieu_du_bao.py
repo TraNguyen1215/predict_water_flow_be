@@ -24,3 +24,11 @@ async def list_du_lieu_du_bao_for_user(db: AsyncSession, ma_nd, ma_may_bom: Opti
     total = int(count_res.scalar_one())
 
     return items, total
+
+
+async def create_du_lieu_du_bao(db: AsyncSession, obj_in: DuLieuDuBao) -> DuLieuDuBao:
+    db.add(obj_in)
+    await db.commit()
+    await db.refresh(obj_in)
+    return obj_in
+

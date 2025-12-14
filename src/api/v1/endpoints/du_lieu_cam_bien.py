@@ -195,8 +195,6 @@ async def list_du_lieu(
             mua=r.mua,
             so_xung=r.so_xung,
             tong_the_tich=r.tong_the_tich,
-            tuoi=r.tuoi,
-            giai_doan=r.giai_doan,
             thoi_gian_tao=r.thoi_gian_tao,
         )
         for r in rows
@@ -238,8 +236,6 @@ async def get_du_lieu_theo_ngay(
                 mua=r.mua,
                 so_xung=r.so_xung,
                 tong_the_tich=r.tong_the_tich,
-                tuoi=r.tuoi,
-                giai_doan=r.giai_doan,
                 thoi_gian_tao=r.thoi_gian_tao,
             )
             for r in rows
@@ -262,8 +258,6 @@ async def get_du_lieu_theo_ngay(
                 mua=r.mua,
                 so_xung=r.so_xung,
                 tong_the_tich=r.tong_the_tich,
-                tuoi=r.tuoi,
-                giai_doan=r.giai_doan,
                 thoi_gian_tao=r.thoi_gian_tao,
             )
             for r in rows
@@ -305,10 +299,6 @@ async def update_du_lieu(
         updates["so_xung"] = payload.so_xung
     if getattr(payload, "tong_the_tich", None) is not None:
         updates["tong_the_tich"] = payload.tong_the_tich
-    if getattr(payload, "tuoi", None) is not None:
-        updates["tuoi"] = payload.tuoi
-    if getattr(payload, "giai_doan", None) is not None:
-        updates["giai_doan"] = payload.giai_doan
 
     if not updates:
         return {"message": "Không có trường nào để cập nhật"}

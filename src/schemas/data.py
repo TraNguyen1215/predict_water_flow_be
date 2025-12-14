@@ -14,8 +14,6 @@ class DataCreate(BaseModel):
     mua: Optional[bool]
     so_xung: Optional[float]
     tong_the_tich: Optional[float]
-    tuoi: Optional[int]  # 0/1
-    giai_doan: Optional[str]  # nảy mầm, sinh trưởng, thu hoach
 
 
 class DataOut(BaseModel):
@@ -30,6 +28,4 @@ class DataOut(BaseModel):
     mua: Optional[bool]
     so_xung: Optional[float]
     tong_the_tich: Optional[float]
-    tuoi: Optional[int]  # 0/1
-    giai_doan: Optional[str]  # nảy mầm, sinh trưởng, thu hoach
     thoi_gian_tao: Optional[datetime]

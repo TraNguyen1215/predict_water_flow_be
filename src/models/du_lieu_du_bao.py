@@ -13,7 +13,6 @@ class DuLieuDuBao(Base):
     mo_hinh = Column(String)
     thoi_diem_du_bao = Column(DateTime(timezone=True))
     luu_luong_du_bao = Column(Float, default=0)
-    luu_luong_thuc_te = Column(Float, default=0)
     do_tin_cay = Column(Float, default=0)
     thoi_gian_tao = Column(DateTime, server_default=func.now())
     ma_nguoi_dung = Column(PG_UUID(as_uuid=True), ForeignKey("nguoi_dung.ma_nguoi_dung"), nullable=False)
