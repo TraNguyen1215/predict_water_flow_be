@@ -18,7 +18,6 @@ class UserPublic(BaseModel):
     ho_ten: Optional[str] = None
     so_dien_thoai: Optional[str] = None
     dia_chi: Optional[str] = None
-    avatar: Optional[str] = None
     trang_thai: Optional[bool] = None
     thoi_gian_tao: Optional[datetime] = None
     dang_nhap_lan_cuoi: Optional[datetime] = None

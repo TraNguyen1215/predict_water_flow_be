@@ -7,6 +7,7 @@ from src.api import deps
 from src.schemas.pump import PumpCreate, PumpOut
 from src.schemas.sensor import SensorOut
 from src.crud.may_bom import *
+from src.crud.cau_hinh_thiet_bi import create_cau_hinh_thiet_bi
 from src.crud.nguoi_dung import get_all_admins, get_by_id as get_user_by_id
 from src.crud.thong_bao import create_notification
 
@@ -32,9 +33,20 @@ async def create_may_bom_endpoint(
     
     ma = await create_may_bom(db, current_user.ma_nguoi_dung, payload)
     
-    await db.commit()
-    
     pump_id = getattr(ma, "ma_may_bom")
+    
+    # Tự động tạo cấu hình thiết bị với tất cả giá trị ngưỡng = 0
+    await create_cau_hinh_thiet_bi(db, pump_id, {
+        "do_am_toi_thieu": 0,
+        "do_am_toi_da": 0,
+        "nhiet_do_toi_da": 0,
+        "luu_luong_toi_thieu": 0,
+        "gio_bat_dau": 0,
+        "gio_ket_thuc": 0,
+        "tan_suat_gui_du_lieu": 0,
+    })
+    
+    await db.commit()
     
     # Gửi thông báo tới tất cả admin về tạo máy bơm
     admins = await get_all_admins(db)

@@ -11,6 +11,7 @@ class SensorInType(BaseModel):
     mo_ta: Optional[str] = None
     ngay_lap_dat: Optional[datetime] = None
     thoi_gian_tao: Optional[datetime] = None
+    thoi_gian_cap_nhat: Optional[datetime] = None
     trang_thai: Optional[bool] = None
     may_bom: Optional[PumpMinimal] = None
     nguoi_dung: Optional[UserPublicMinimal] = None

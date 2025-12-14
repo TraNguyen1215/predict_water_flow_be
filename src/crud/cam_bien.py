@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Optional
+from datetime import datetime
 from src.schemas.sensor import SensorCreate
 from src.models.cam_bien import CamBien
 from src.models.may_bom import MayBom
@@ -99,6 +100,7 @@ async def update_cam_bien(db: AsyncSession, ma_cam_bien: int, payload: SensorCre
     if hasattr(payload, "trang_thai"):
         obj.trang_thai = payload.trang_thai
     obj.loai = payload.loai
+    obj.thoi_gian_cap_nhat = datetime.now()
     await db.flush()
     
     # Tạo thông báo

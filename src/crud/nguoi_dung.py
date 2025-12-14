@@ -40,14 +40,6 @@ async def update_password(db: AsyncSession, ma_nguoi_dung: UUID, mat_khau_hash: 
     )
 
 
-async def update_avatar(db: AsyncSession, ma_nguoi_dung: UUID, avatar: str):
-    await db.execute(
-        update(NguoiDung)
-        .where(NguoiDung.ma_nguoi_dung == ma_nguoi_dung)
-        .values(avatar=avatar)
-    )
-
-
 async def delete_user(db: AsyncSession, ma_nguoi_dung: UUID):
     await db.execute(delete(NguoiDung).where(NguoiDung.ma_nguoi_dung == ma_nguoi_dung))
 

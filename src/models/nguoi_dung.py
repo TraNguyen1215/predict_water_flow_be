@@ -15,7 +15,6 @@ class NguoiDung(Base):
     ho_ten = Column(String)
     so_dien_thoai = Column(String)
     dia_chi = Column(String)
-    avatar = Column(String)
     trang_thai = Column(Boolean, default=True)
     dang_nhap_lan_cuoi = Column(DateTime)
     thoi_gian_tao = Column(DateTime, server_default=func.now())

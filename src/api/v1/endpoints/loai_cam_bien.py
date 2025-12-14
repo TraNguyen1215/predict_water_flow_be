@@ -41,6 +41,7 @@ async def get_loai_cam_bien(
                 mo_ta=s.get("mo_ta"),
                 ngay_lap_dat=s.get("ngay_lap_dat"),
                 thoi_gian_tao=s.get("thoi_gian_tao"),
+                thoi_gian_cap_nhat=s.get("thoi_gian_cap_nhat"),
                 trang_thai=s.get("trang_thai"),
                 may_bom=s.get("may_bom"),
                 nguoi_dung=s.get("nguoi_dung"),
