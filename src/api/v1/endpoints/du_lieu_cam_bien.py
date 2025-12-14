@@ -16,6 +16,7 @@ from src.crud.du_lieu_cam_bien import (
 )
 from src.crud.may_bom import get_may_bom_by_id
 from src.crud.thong_bao import create_notification
+from src.api.v1.endpoints.admin_alerts import send_alert_to_admins_for_user_device_error
 
 router = APIRouter()
 
@@ -50,6 +51,13 @@ async def _check_sensor_data_timeout(db: AsyncSession, ma_may_bom: int, ma_nguoi
                 ma_thiet_bi=ma_may_bom,
                 du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "thoi_gian_cuoi": str(last_data_time)}
             )
+            # Gửi alert tới admin
+            await send_alert_to_admins_for_user_device_error(
+                db=db,
+                ma_may_bom=ma_may_bom,
+                error_type="sensor_timeout",
+                error_details=f"Cảm biến không có dữ liệu trong hơn 5 phút (lần cuối: {last_data_time})"
+            )
 
 
 async def _check_abnormal_flow(db: AsyncSession, ma_may_bom: int, ma_nguoi_dung: uuid.UUID, luu_luong_nuoc: Optional[float]):
@@ -66,6 +74,13 @@ async def _check_abnormal_flow(db: AsyncSession, ma_may_bom: int, ma_nguoi_dung:
             noi_dung=f"Thiết bị '{pump_name}' ghi nhận lưu lượng nước bất thường. Vui lòng kiểm tra lại.",
             ma_thiet_bi=ma_may_bom,
             du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "luu_luong_nuoc": luu_luong_nuoc}
+        )
+        # Gửi alert tới admin
+        await send_alert_to_admins_for_user_device_error(
+            db=db,
+            ma_may_bom=ma_may_bom,
+            error_type="abnormal_flow",
+            error_details=f"Lưu lượng nước bất thường: {luu_luong_nuoc}"
         )
 
 

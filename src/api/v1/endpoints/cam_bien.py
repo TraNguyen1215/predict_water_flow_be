@@ -62,11 +62,16 @@ async def list_cam_bien_endpoint(
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Danh sách cảm biến."""
+    """Danh sách cảm biến (admin có thể xem tất cả, user chỉ xem của mình)."""
     if page is not None:
         offset = (page - 1) * limit
 
-    rows, total = await list_cam_bien_for_user(db, current_user.ma_nguoi_dung, limit, offset)
+    # Admin xem tất cả, user chỉ xem của mình
+    if current_user.quan_tri_vien:
+        from src.crud.cam_bien import list_all_cam_bien
+        rows, total = await list_all_cam_bien(db, limit, offset)
+    else:
+        rows, total = await list_cam_bien_for_user(db, current_user.ma_nguoi_dung, limit, offset)
     items = [
         SensorOut(
             ma_cam_bien=_extract(r, "ma_cam_bien"),
@@ -93,11 +98,11 @@ async def get_cam_bien_endpoint(
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Lấy thông tin cảm biến theo mã cảm biến."""
+    """Lấy thông tin cảm biến theo mã cảm biến (chủ sở hữu hoặc admin mới được phép truy cập)."""
     row = await get_cam_bien_with_names_by_id(db, ma_cam_bien)
     if not row:
         raise HTTPException(status_code=404, detail="Không tìm thấy cảm biến")
-    if str(row.get("ma_nguoi_dung")) != str(current_user.ma_nguoi_dung):
+    if str(row.get("ma_nguoi_dung")) != str(current_user.ma_nguoi_dung) and not current_user.quan_tri_vien:
         raise HTTPException(status_code=403, detail="Không được phép truy cập dữ liệu người khác")
 
     return SensorOut(
@@ -121,11 +126,12 @@ async def update_cam_bien_endpoint(
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Cập nhật thông tin cảm biến."""
+    """Cập nhật thông tin cảm biến (chủ sở hữu hoặc admin mới được phép chỉnh sửa)."""
     r = await get_cam_bien_by_id(db, ma_cam_bien)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy cảm biến")
-    if str(r.get("ma_nguoi_dung") if hasattr(r, 'get') else getattr(r, 'ma_nguoi_dung', None)) != str(current_user.ma_nguoi_dung):
+    ma_user = r.get("ma_nguoi_dung") if hasattr(r, 'get') else getattr(r, 'ma_nguoi_dung', None)
+    if str(ma_user) != str(current_user.ma_nguoi_dung) and not current_user.quan_tri_vien:
         raise HTTPException(status_code=403, detail="Không được phép chỉnh sửa cảm biến này")
     await update_cam_bien(db, ma_cam_bien, payload)
     await db.commit()
@@ -138,11 +144,12 @@ async def delete_cam_bien_endpoint(
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Xoá cảm biến theo mã cảm biến."""
+    """Xoá cảm biến theo mã cảm biến (chủ sở hữu hoặc admin mới được phép xoá)."""
     r = await get_cam_bien_by_id(db, ma_cam_bien)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy cảm biến")
-    if str(r.get("ma_nguoi_dung") if hasattr(r, 'get') else getattr(r, 'ma_nguoi_dung', None)) != str(current_user.ma_nguoi_dung):
+    ma_user = r.get("ma_nguoi_dung") if hasattr(r, 'get') else getattr(r, 'ma_nguoi_dung', None)
+    if str(ma_user) != str(current_user.ma_nguoi_dung) and not current_user.quan_tri_vien:
         raise HTTPException(status_code=403, detail="Không được phép xoá cảm biến này")
 
     await delete_cam_bien(db, ma_cam_bien)

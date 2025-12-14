@@ -11,6 +11,7 @@ from .endpoints import (
     nguoi_dung,
     nhat_ky_may_bom,
     thong_bao,
+    admin_alerts,
 )
 
 api_v1_router = APIRouter()
@@ -27,3 +28,4 @@ api_v1_router.include_router(du_lieu_du_bao.router, prefix="/du-lieu-du-bao", ta
 api_v1_router.include_router(mo_hinh_du_bao.router, prefix="/mo-hinh-du-bao", tags=["mo-hinh-du-bao"])
 api_v1_router.include_router(nhat_ky_may_bom.router, prefix="/nhat-ky-may-bom", tags=["nhat-ky-may-bom"])
 api_v1_router.include_router(thong_bao.router, prefix="/thong-bao", tags=["thong-bao"])
+api_v1_router.include_router(admin_alerts.router, prefix="/admin-alerts", tags=["admin-alerts"])

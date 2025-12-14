@@ -7,6 +7,7 @@ from src.schemas.du_lieu_du_bao import ForecastOut
 from src.crud.may_bom import get_may_bom_by_id
 from src.crud.du_lieu_du_bao import list_du_lieu_du_bao_for_user
 from src.crud.thong_bao import create_notification
+from src.api.v1.endpoints.admin_alerts import send_alert_to_admins_for_user_device_error
 
 router = APIRouter()
 
@@ -25,6 +26,13 @@ async def _check_forecast_model_error(db: AsyncSession, ma_may_bom: int, ma_nguo
             noi_dung=f"Mô hình dự báo AI gặp lỗi khi xử lý dữ liệu cho thiết bị '{pump_name}'. Dự báo có thể không chính xác. Vui lòng chờ hệ thống xử lý lại.",
             ma_thiet_bi=ma_may_bom,
             du_lieu_lien_quan={"ma_may_bom": ma_may_bom, "error": True}
+        )
+        # Gửi alert tới admin
+        await send_alert_to_admins_for_user_device_error(
+            db=db,
+            ma_may_bom=ma_may_bom,
+            error_type="forecast_error",
+            error_details="Mô hình dự báo AI gặp lỗi khi xử lý dữ liệu"
         )
 
 

@@ -34,6 +34,8 @@ async def create_may_bom_endpoint(
     
     await db.commit()
     
+    pump_id = getattr(ma, "ma_may_bom")
+    
     # Gửi thông báo tới tất cả admin về tạo máy bơm
     admins = await get_all_admins(db)
     user = await get_user_by_id(db, current_user.ma_nguoi_dung)
@@ -47,9 +49,21 @@ async def create_may_bom_endpoint(
             muc_do="MEDIUM",
             tieu_de="Thiết bị mới được gán",
             noi_dung=f"Người dùng '{user_name}' vừa được gán thiết bị '{payload.ten_may_bom}'.",
-            ma_thiet_bi=getattr(ma, "ma_may_bom"),
-            du_lieu_lien_quan={"ma_may_bom": getattr(ma, "ma_may_bom"), "ten_may_bom": payload.ten_may_bom}
+            ma_thiet_bi=pump_id,
+            du_lieu_lien_quan={"ma_may_bom": pump_id, "ten_may_bom": payload.ten_may_bom}
         )
+    
+    # Gửi thông báo INFO tới user về thiết bị được gán
+    await create_notification(
+        db=db,
+        ma_nguoi_dung=current_user.ma_nguoi_dung,
+        loai="INFO",
+        muc_do="MEDIUM",
+        tieu_de="Thiết bị được gán thành công",
+        noi_dung=f"Bạn vừa được gán thiết bị '{payload.ten_may_bom}'. Thiết bị này sẽ giúp bạn theo dõi và quản lý hệ thống tưới.",
+        ma_thiet_bi=pump_id,
+        du_lieu_lien_quan={"ma_may_bom": pump_id, "ten_may_bom": payload.ten_may_bom}
+    )
     await db.commit()
     
     return PumpOut(
@@ -70,11 +84,16 @@ async def list_may_bom_endpoint(
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Danh sách máy bơm"""
+    """Danh sách máy bơm (admin có thể xem tất cả, user chỉ xem của mình)"""
     if page is not None:
         offset = (page - 1) * limit
 
-    rows, total = await list_may_bom_for_user(db, current_user.ma_nguoi_dung, limit, offset)
+    # Admin xem tất cả, user chỉ xem của mình
+    if current_user.quan_tri_vien:
+        from src.crud.may_bom import list_all_may_bom
+        rows, total = await list_all_may_bom(db, limit, offset)
+    else:
+        rows, total = await list_may_bom_for_user(db, current_user.ma_nguoi_dung, limit, offset)
     items = [
         PumpOut(
             ma_may_bom=r.ma_may_bom,
@@ -98,13 +117,13 @@ async def get_may_bom_endpoint(
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Lấy thông tin máy bơm theo mã máy bơm (chỉ chủ sở hữu mới được phép truy cập)."""
+    """Lấy thông tin máy bơm theo mã máy bơm (chủ sở hữu hoặc admin mới được phép truy cập)."""
     res = await get_may_bom_with_sensors(db, ma_may_bom)
     if not res:
         raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm")
 
     pump, sensors, sensor_count = res
-    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung) and not current_user.quan_tri_vien:
         raise HTTPException(status_code=403, detail="Không được phép truy cập dữ liệu người khác")
 
     return PumpOut(
@@ -141,11 +160,11 @@ async def update_may_bom_endpoint(
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Cập nhật thông tin máy bơm (chỉ chủ sở hữu mới được phép chỉnh sửa)."""
+    """Cập nhật thông tin máy bơm (chủ sở hữu hoặc admin mới được phép chỉnh sửa)."""
     r = await get_may_bom_by_id(db, ma_may_bom)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm")
-    if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung) and not current_user.quan_tri_vien:
         raise HTTPException(status_code=403, detail="Không được phép chỉnh sửa máy bơm này")
 
     await update_may_bom(db, ma_may_bom, payload)
@@ -159,11 +178,11 @@ async def delete_may_bom_endpoint(
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Xoá máy bơm (chỉ chủ sở hữu mới được phép xoá)."""
+    """Xoá máy bơm (chủ sở hữu hoặc admin mới được phép xoá)."""
     r = await get_may_bom_by_id(db, ma_may_bom)
     if not r:
         raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm")
-    if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    if str(r.ma_nguoi_dung) != str(current_user.ma_nguoi_dung) and not current_user.quan_tri_vien:
         raise HTTPException(status_code=403, detail="Không được phép xoá máy bơm này")
 
     await delete_may_bom(db, ma_may_bom)

@@ -1,12 +1,138 @@
 from typing import Optional
 import math
-from fastapi import APIRouter, Depends, Query, HTTPException
+from datetime import datetime, timedelta, date
+from fastapi import APIRouter, Depends, Query, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text, select, func
 from src.api import deps
 from src.schemas.thong_bao import ThongBaoCreate, ThongBaoUpdate, ThongBaoResponse
 from src.crud import thong_bao as crud_thong_bao
+from src.crud.may_bom import list_may_bom_for_user
+from src.crud.nguoi_dung import list_users
+from src.models.nhat_ky_may_bom import NhatKyMayBom
+from src.models.du_lieu_cam_bien import DuLieuCamBien
 
 router = APIRouter()
+
+
+async def _generate_weekly_report(db: AsyncSession, ma_nguoi_dung, ma_may_bom: int):
+    """Tính toán dữ liệu báo cáo hàng tuần"""
+    today = date.today()
+    start_of_week = today - timedelta(days=today.weekday())  # Thứ 2 tuần trước
+    
+    # Đếm số lần tưới trong tuần
+    q_watering = (
+        select(func.count())
+        .select_from(NhatKyMayBom)
+        .where(
+            NhatKyMayBom.ma_may_bom == ma_may_bom,
+            func.date(NhatKyMayBom.thoi_gian_bat) >= start_of_week,
+            func.date(NhatKyMayBom.thoi_gian_bat) < today
+        )
+    )
+    res_watering = await db.execute(q_watering)
+    watering_count = res_watering.scalar() or 0
+    
+    # Tính trung bình độ ẩm trong tuần
+    q_humidity = (
+        text("""
+            SELECT AVG(do_am) as avg_humidity FROM du_lieu_cam_bien 
+            WHERE ma_may_bom = :ma_may_bom 
+            AND DATE(thoi_gian_tao) >= :start_date
+            AND DATE(thoi_gian_tao) < :end_date
+        """)
+    )
+    res_humidity = await db.execute(q_humidity, {
+        "ma_may_bom": ma_may_bom,
+        "start_date": start_of_week,
+        "end_date": today
+    })
+    humidity_row = res_humidity.fetchone()
+    avg_humidity = humidity_row[0] if humidity_row and humidity_row[0] else 0
+    
+    # Tính tổng lưu lượng trong tuần
+    q_flow = (
+        text("""
+            SELECT SUM(luu_luong_nuoc) as total_flow FROM du_lieu_cam_bien 
+            WHERE ma_may_bom = :ma_may_bom 
+            AND DATE(thoi_gian_tao) >= :start_date
+            AND DATE(thoi_gian_tao) < :end_date
+        """)
+    )
+    res_flow = await db.execute(q_flow, {
+        "ma_may_bom": ma_may_bom,
+        "start_date": start_of_week,
+        "end_date": today
+    })
+    flow_row = res_flow.fetchone()
+    total_flow = flow_row[0] if flow_row and flow_row[0] else 0
+    
+    return {
+        "watering_count": watering_count,
+        "avg_humidity": round(avg_humidity, 2) if avg_humidity else 0,
+        "total_flow": round(total_flow, 2) if total_flow else 0,
+        "period": f"{start_of_week} đến {today - timedelta(days=1)}"
+    }
+
+
+async def _generate_monthly_report(db: AsyncSession, ma_nguoi_dung, ma_may_bom: int):
+    """Tính toán dữ liệu báo cáo hàng tháng"""
+    today = date.today()
+    start_of_month = date(today.year, today.month, 1)
+    
+    # Đếm số lần tưới trong tháng
+    q_watering = (
+        select(func.count())
+        .select_from(NhatKyMayBom)
+        .where(
+            NhatKyMayBom.ma_may_bom == ma_may_bom,
+            func.date(NhatKyMayBom.thoi_gian_bat) >= start_of_month,
+            func.date(NhatKyMayBom.thoi_gian_bat) < today
+        )
+    )
+    res_watering = await db.execute(q_watering)
+    watering_count = res_watering.scalar() or 0
+    
+    # Tính trung bình độ ẩm trong tháng
+    q_humidity = (
+        text("""
+            SELECT AVG(do_am) as avg_humidity FROM du_lieu_cam_bien 
+            WHERE ma_may_bom = :ma_may_bom 
+            AND DATE(thoi_gian_tao) >= :start_date
+            AND DATE(thoi_gian_tao) < :end_date
+        """)
+    )
+    res_humidity = await db.execute(q_humidity, {
+        "ma_may_bom": ma_may_bom,
+        "start_date": start_of_month,
+        "end_date": today
+    })
+    humidity_row = res_humidity.fetchone()
+    avg_humidity = humidity_row[0] if humidity_row and humidity_row[0] else 0
+    
+    # Tính tổng lưu lượng trong tháng
+    q_flow = (
+        text("""
+            SELECT SUM(luu_luong_nuoc) as total_flow FROM du_lieu_cam_bien 
+            WHERE ma_may_bom = :ma_may_bom 
+            AND DATE(thoi_gian_tao) >= :start_date
+            AND DATE(thoi_gian_tao) < :end_date
+        """)
+    )
+    res_flow = await db.execute(q_flow, {
+        "ma_may_bom": ma_may_bom,
+        "start_date": start_of_month,
+        "end_date": today
+    })
+    flow_row = res_flow.fetchone()
+    total_flow = flow_row[0] if flow_row and flow_row[0] else 0
+    
+    return {
+        "watering_count": watering_count,
+        "avg_humidity": round(avg_humidity, 2) if avg_humidity else 0,
+        "total_flow": round(total_flow, 2) if total_flow else 0,
+        "period": f"Tháng {today.month}/{today.year}"
+    }
 
 
 @router.post("/", status_code=201, response_model=ThongBaoResponse)
@@ -168,3 +294,91 @@ async def delete_thong_bao(
 
     success = await crud_thong_bao.delete(db, ma_thong_bao)
     return {"deleted": success}
+
+
+@router.post("/send-weekly-reports", status_code=200)
+async def send_weekly_reports(
+    db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
+):
+    """Gửi báo cáo hàng tuần cho tất cả người dùng. Chỉ admin mới có quyền."""
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới có quyền gửi báo cáo")
+    
+    # Lấy tất cả người dùng
+    users, total, _, _, _, _ = await list_users(db, limit=10000, offset=0)
+    
+    sent_count = 0
+    for user in users:
+        # Lấy danh sách máy bơm của user
+        pumps, _ = await list_may_bom_for_user(db, user.ma_nguoi_dung, limit=100, offset=0)
+        
+        if pumps:
+            report_content = "📊 **Báo cáo tuần**\n\n"
+            
+            for pump in pumps:
+                weekly_data = await _generate_weekly_report(db, user.ma_nguoi_dung, pump.ma_may_bom)
+                report_content += f"**Thiết bị: {pump.ten_may_bom}**\n"
+                report_content += f"- Số lần tưới: {weekly_data['watering_count']} lần\n"
+                report_content += f"- Độ ẩm trung bình: {weekly_data['avg_humidity']}%\n"
+                report_content += f"- Tổng lưu lượng: {weekly_data['total_flow']} lít\n"
+                report_content += f"- Kỳ: {weekly_data['period']}\n\n"
+            
+            # Gửi thông báo
+            await crud_thong_bao.create_notification(
+                db=db,
+                ma_nguoi_dung=user.ma_nguoi_dung,
+                loai="INFO",
+                muc_do="MEDIUM",
+                tieu_de="Báo cáo tuần của bạn",
+                noi_dung=report_content,
+                du_lieu_lien_quan={"type": "weekly_report"}
+            )
+            sent_count += 1
+    
+    await db.commit()
+    return {"message": f"Gửi báo cáo hàng tuần thành công cho {sent_count} người dùng"}
+
+
+@router.post("/send-monthly-reports", status_code=200)
+async def send_monthly_reports(
+    db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
+):
+    """Gửi báo cáo hàng tháng cho tất cả người dùng. Chỉ admin mới có quyền."""
+    if not getattr(current_user, "quan_tri_vien", False):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên mới có quyền gửi báo cáo")
+    
+    # Lấy tất cả người dùng
+    users, total, _, _, _, _ = await list_users(db, limit=10000, offset=0)
+    
+    sent_count = 0
+    for user in users:
+        # Lấy danh sách máy bơm của user
+        pumps, _ = await list_may_bom_for_user(db, user.ma_nguoi_dung, limit=100, offset=0)
+        
+        if pumps:
+            report_content = "📊 **Báo cáo tháng**\n\n"
+            
+            for pump in pumps:
+                monthly_data = await _generate_monthly_report(db, user.ma_nguoi_dung, pump.ma_may_bom)
+                report_content += f"**Thiết bị: {pump.ten_may_bom}**\n"
+                report_content += f"- Số lần tưới: {monthly_data['watering_count']} lần\n"
+                report_content += f"- Độ ẩm trung bình: {monthly_data['avg_humidity']}%\n"
+                report_content += f"- Tổng lưu lượng: {monthly_data['total_flow']} lít\n"
+                report_content += f"- Kỳ: {monthly_data['period']}\n\n"
+            
+            # Gửi thông báo
+            await crud_thong_bao.create_notification(
+                db=db,
+                ma_nguoi_dung=user.ma_nguoi_dung,
+                loai="INFO",
+                muc_do="MEDIUM",
+                tieu_de="Báo cáo tháng của bạn",
+                noi_dung=report_content,
+                du_lieu_lien_quan={"type": "monthly_report"}
+            )
+            sent_count += 1
+    
+    await db.commit()
+    return {"message": f"Gửi báo cáo hàng tháng thành công cho {sent_count} người dùng"}

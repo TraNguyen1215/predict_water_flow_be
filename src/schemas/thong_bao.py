@@ -31,5 +31,5 @@ class ThongBaoResponse(ThongBaoBase):
     ma_thong_bao: int
     ma_nguoi_dung: UUID
     ma_thiet_bi: Optional[int]
-    thoi_gian: datetime
+    thoi_gian_tao: datetime
     thoi_gian_cap_nhat: Optional[datetime]

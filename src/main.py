@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from .core.config import settings
 from .api.v1.api import api_v1_router
 from .core.logging_config import setup_logging
+from .core.scheduler import start_scheduler
 import logging
 
 
@@ -28,6 +29,27 @@ app.add_middleware(
 # Include API router
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 setup_logging()
+
+# Khởi động scheduler
+scheduler = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Khởi động scheduler khi ứng dụng start"""
+    global scheduler
+    try:
+        scheduler = start_scheduler()
+    except Exception as e:
+        logging.getLogger("uvicorn.error").error(f"Lỗi khi khởi động scheduler: {str(e)}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Dừng scheduler khi ứng dụng shutdown"""
+    global scheduler
+    if scheduler:
+        scheduler.shutdown()
+        logging.getLogger("uvicorn.error").info("Scheduler đã dừng")
 
 
 @app.exception_handler(Exception)

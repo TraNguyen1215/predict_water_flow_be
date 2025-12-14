@@ -1,13 +1,13 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from src.schemas.pump import PumpCreate
 from typing import Optional
 from src.models.may_bom import MayBom
 from src.models.nguoi_dung import NguoiDung
 from src.models.cam_bien import CamBien
 from src.models.loai_cam_bien import LoaiCamBien
-from sqlalchemy import select
+from src.models.thong_bao import ThongBao
 from src.crud import thong_bao as crud_thong_bao
 
 
@@ -120,7 +120,20 @@ async def update_may_bom(db: AsyncSession, ma_may_bom: int, payload: PumpCreate)
 async def delete_may_bom(db: AsyncSession, ma_may_bom: int):
     obj = await get_may_bom_by_id(db, ma_may_bom)
     if obj:
-        # Tạo thông báo trước khi xoá
+        # Xóa tất cả thông báo liên quan đến máy bơm này trước
+        delete_thong_bao_q = delete(ThongBao).where(ThongBao.ma_thiet_bi == ma_may_bom)
+        await db.execute(delete_thong_bao_q)
+        
+        # Xóa tất cả cảm biến của máy bơm này
+        delete_cam_bien_q = delete(CamBien).where(CamBien.ma_may_bom == ma_may_bom)
+        await db.execute(delete_cam_bien_q)
+        
+        # Xóa dữ liệu cảm biến liên quan
+        from src.models.du_lieu_cam_bien import DuLieuCamBien
+        delete_du_lieu_q = delete(DuLieuCamBien).where(DuLieuCamBien.ma_may_bom == ma_may_bom)
+        await db.execute(delete_du_lieu_q)
+        
+        # Tạo thông báo trước khi xoá (không set ma_thiet_bi để tránh foreign key constraint)
         await crud_thong_bao.create_notification(
             db,
             obj.ma_nguoi_dung,
@@ -128,10 +141,21 @@ async def delete_may_bom(db: AsyncSession, ma_may_bom: int):
             muc_do="INFO",
             tieu_de=f"Máy bơm '{obj.ten_may_bom}' đã được xoá",
             noi_dung=f"Máy bơm '{obj.ten_may_bom}' đã được xoá khỏi hệ thống.",
-            ma_thiet_bi=ma_may_bom,
             du_lieu_lien_quan={"ten_may_bom": obj.ten_may_bom},
         )
         await db.delete(obj)
+
+
+async def list_all_may_bom(db: AsyncSession, limit: int, offset: int):
+    """Lấy danh sách tất cả máy bơm (dùng cho admin)"""
+    q = select(MayBom).order_by(MayBom.thoi_gian_tao.desc()).limit(limit).offset(offset)
+    res = await db.execute(q)
+    items = res.scalars().all()
+
+    count_q = select(func.count()).select_from(MayBom)
+    count_res = await db.execute(count_q)
+    total = int(count_res.scalar_one())
+    return items, total
 
 
 async def count_may_bom_for_user(db: AsyncSession, ma_nguoi_dung: uuid.UUID) -> int:

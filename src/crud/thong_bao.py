@@ -70,7 +70,7 @@ async def get_by_user(
     q = (
         select(ThongBao)
         .where(ThongBao.ma_nguoi_dung == ma_nguoi_dung)
-        .order_by(desc(ThongBao.thoi_gian))
+        .order_by(desc(ThongBao.thoi_gian_tao))
         .offset(skip)
         .limit(limit)
     )
@@ -94,7 +94,7 @@ async def get_unread_by_user(
         .where(
             (ThongBao.ma_nguoi_dung == ma_nguoi_dung) & (ThongBao.da_xem == False)
         )
-        .order_by(desc(ThongBao.thoi_gian))
+        .order_by(desc(ThongBao.thoi_gian_tao))
         .offset(skip)
         .limit(limit)
     )

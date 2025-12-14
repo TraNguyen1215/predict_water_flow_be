@@ -209,6 +209,20 @@ async def update_cau_hinh_thiet_bi_endpoint(
             du_lieu_lien_quan={"ma_cau_hinh": ma_cau_hinh, "ma_thiet_bi": config.ma_thiet_bi}
         )
     
+    # Gửi thông báo INFO tới user chủ sở hữu thiết bị về cập nhật cấu hình
+    if pump:
+        await create_notification(
+            db=db,
+            ma_nguoi_dung=pump.ma_nguoi_dung,
+            loai="INFO",
+            muc_do="MEDIUM",
+            tieu_de="Cập nhật cấu hình ngưỡng tưới",
+            noi_dung=f"Cấu hình ngưỡng tưới của thiết bị '{pump_name}' vừa được cập nhật. Các thay đổi sẽ áp dụng ngay lập tức.",
+            ma_thiet_bi=config.ma_thiet_bi,
+            du_lieu_lien_quan={"ma_cau_hinh": ma_cau_hinh, "ma_thiet_bi": config.ma_thiet_bi}
+        )
+    await db.commit()
+    
     # Gửi thông báo tới người dùng sở hữu thiết bị về cập nhật cấu hình
     if pump:
         user = await get_user_by_id(db, pump.ma_nguoi_dung)
