@@ -4,7 +4,7 @@ import math
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.api import deps
-from src.schemas.pump import PumpCreate, PumpOut
+from src.schemas.pump import PumpCreate, PumpOut, PumpUpdate
 from src.schemas.sensor import SensorOut
 from src.crud.may_bom import *
 from src.crud.cau_hinh_thiet_bi import create_cau_hinh_thiet_bi
@@ -21,17 +21,24 @@ async def create_may_bom_endpoint(
     current_user=Depends(deps.get_current_user),
 ):
     """Tạo máy bơm mới"""
+    # Xác định người dùng mục tiêu
+    if current_user.quan_tri_vien:
+        target_user_id = payload.ma_nguoi_dung
+    else:
+        target_user_id = current_user.ma_nguoi_dung
+
     # Kiểm tra xem người dùng đã có máy bơm chưa
-    pump_count = await count_may_bom_for_user(db, current_user.ma_nguoi_dung)
-    if pump_count >= 1:
-        raise HTTPException(status_code=400, detail="Mỗi tài khoản chỉ được có 1 máy bơm. Xoá máy bơm cũ trước khi tạo máy bơm mới")
+    if target_user_id:
+        pump_count = await count_may_bom_for_user(db, target_user_id)
+        if pump_count >= 1:
+            raise HTTPException(status_code=400, detail="Mỗi tài khoản chỉ được có 1 máy bơm. Xoá máy bơm cũ trước khi tạo máy bơm mới")
+        
+        # Kiểm tra tên máy bơm đã tồn tại chưa
+        existing = await get_may_bom_by_name_and_user(db, payload.ten_may_bom, target_user_id)
+        if existing:
+            raise HTTPException(status_code=400, detail="Tên máy bơm đã tồn tại")
     
-    # Kiểm tra tên máy bơm đã tồn tại chưa
-    existing = await get_may_bom_by_name_and_user(db, payload.ten_may_bom, current_user.ma_nguoi_dung)
-    if existing:
-        raise HTTPException(status_code=400, detail="Tên máy bơm đã tồn tại")
-    
-    ma = await create_may_bom(db, current_user.ma_nguoi_dung, payload)
+    ma = await create_may_bom(db, target_user_id, payload)
     
     pump_id = getattr(ma, "ma_may_bom")
     
@@ -168,7 +175,7 @@ async def get_may_bom_endpoint(
 @router.put("/{ma_may_bom}", status_code=200)
 async def update_may_bom_endpoint(
     ma_may_bom: int,
-    payload: PumpCreate,
+    payload: PumpUpdate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):

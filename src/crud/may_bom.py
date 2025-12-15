@@ -1,13 +1,15 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
-from src.schemas.pump import PumpCreate
+from src.schemas.pump import PumpCreate, PumpUpdate
 from typing import Optional
 from src.models.may_bom import MayBom
 from src.models.nguoi_dung import NguoiDung
 from src.models.cam_bien import CamBien
 from src.models.loai_cam_bien import LoaiCamBien
 from src.models.thong_bao import ThongBao
+from src.models.nhat_ky_may_bom import NhatKyMayBom
+from src.models.cau_hinh_thiet_bi import CauHinhThietBi
 from src.crud import thong_bao as crud_thong_bao
 
 
@@ -91,13 +93,14 @@ async def get_may_bom_by_name_and_user(db: AsyncSession, ten_may_bom: str, ma_ng
     return res.scalars().first()
 
 
-async def update_may_bom(db: AsyncSession, ma_may_bom: int, payload: PumpCreate):
+async def update_may_bom(db: AsyncSession, ma_may_bom: int, payload: PumpUpdate):
     obj = await get_may_bom_by_id(db, ma_may_bom)
     if not obj:
         return None
-    obj.ten_may_bom = payload.ten_may_bom
-    obj.mo_ta = payload.mo_ta
-    obj.che_do = payload.che_do
+    
+    update_data = payload.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(obj, key, value)
     obj.trang_thai = payload.trang_thai
     obj.gioi_han_thoi_gian = payload.gioi_han_thoi_gian
     await db.flush()
@@ -123,6 +126,14 @@ async def delete_may_bom(db: AsyncSession, ma_may_bom: int):
         # Xóa tất cả thông báo liên quan đến máy bơm này trước
         delete_thong_bao_q = delete(ThongBao).where(ThongBao.ma_thiet_bi == ma_may_bom)
         await db.execute(delete_thong_bao_q)
+        
+        # Xóa nhật ký máy bơm
+        delete_nhat_ky_q = delete(NhatKyMayBom).where(NhatKyMayBom.ma_may_bom == ma_may_bom)
+        await db.execute(delete_nhat_ky_q)
+
+        # Xóa cấu hình thiết bị
+        delete_cau_hinh_q = delete(CauHinhThietBi).where(CauHinhThietBi.ma_thiet_bi == ma_may_bom)
+        await db.execute(delete_cau_hinh_q)
         
         # Xóa tất cả cảm biến của máy bơm này
         delete_cam_bien_q = delete(CamBien).where(CamBien.ma_may_bom == ma_may_bom)

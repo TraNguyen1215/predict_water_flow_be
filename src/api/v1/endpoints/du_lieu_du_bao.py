@@ -180,13 +180,11 @@ async def predict_flow(
             std_dev = np.std(preds)
             mean_val = np.mean(preds)
             
-            # Avoid division by zero
             if mean_val == 0:
                 confidence = 1.0 if std_dev == 0 else 0.0
             else:
                 # Coefficient of variation
                 cv = std_dev / abs(mean_val)
-                # Simple linear mapping: 0 CV -> 100% conf, 1 CV -> 0% conf
                 confidence = max(0.0, 1.0 - cv)
         else:
             # Fallback if not RF or no estimators

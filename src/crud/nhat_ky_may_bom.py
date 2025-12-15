@@ -47,19 +47,21 @@ async def create_nhat_ky(db: AsyncSession, payload: NhatKyCreate, ma_nguoi_dung=
     return obj
 
 
-async def list_nhat_ky_for_pump(db: AsyncSession, ngay: date,  ma_may_bom: int, limit: int, offset: int):
-    start = datetime.combine(ngay, time.min)
-    end = datetime.combine(ngay, time.max)
+async def list_nhat_ky_for_pump(db: AsyncSession, ngay: Optional[date],  ma_may_bom: int, limit: int, offset: int):
+    q = select(NhatKyMayBom).where(NhatKyMayBom.ma_may_bom == ma_may_bom)
+    count_q = select(func.count()).select_from(NhatKyMayBom).where(NhatKyMayBom.ma_may_bom == ma_may_bom)
 
-    q = select(NhatKyMayBom).where(NhatKyMayBom.ma_may_bom == ma_may_bom,
-                                    NhatKyMayBom.thoi_gian_tao >= start,
-                                    NhatKyMayBom.thoi_gian_tao <= end).order_by(NhatKyMayBom.thoi_gian_tao.desc()).limit(limit).offset(offset)
+    if ngay:
+        start = datetime.combine(ngay, time.min)
+        end = datetime.combine(ngay, time.max)
+        q = q.where(NhatKyMayBom.thoi_gian_tao >= start, NhatKyMayBom.thoi_gian_tao <= end)
+        count_q = count_q.where(NhatKyMayBom.thoi_gian_tao >= start, NhatKyMayBom.thoi_gian_tao <= end)
+
+    q = q.order_by(NhatKyMayBom.thoi_gian_tao.desc()).limit(limit).offset(offset)
+    
     res = await db.execute(q)
     items = res.scalars().all()
 
-    count_q = select(func.count()).select_from(NhatKyMayBom).where(NhatKyMayBom.ma_may_bom == ma_may_bom,
-                                                                    NhatKyMayBom.thoi_gian_tao >= start,
-                                                                    NhatKyMayBom.thoi_gian_tao <= end)
     count_res = await db.execute(count_q)
     total = int(count_res.scalar_one())
     return items, total

@@ -161,6 +161,40 @@ async def create_nhat_ky_endpoint(
     )
 
 
+@router.get("/", status_code=200)
+async def list_all_nhat_ky_endpoint(
+    ma_may_bom: int = Query(...),
+    ngay: Optional[date] = Query(None),
+    limit: int = Query(15, ge=1),
+    offset: int = Query(0, ge=0),
+    page: Optional[int] = Query(None, ge=1),
+    db: AsyncSession = Depends(deps.get_db_session),
+    current_user=Depends(deps.get_current_user),
+):
+    """Danh sách nhật ký cho một máy bơm (chủ sở hữu hoặc admin)."""
+    
+    pump = await get_may_bom_by_id(db, ma_may_bom)
+    if not pump:
+        raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm")
+    
+    # Check permission: Owner or Admin
+    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung) and not current_user.quan_tri_vien:
+        raise HTTPException(status_code=403, detail="Không được phép truy cập nhật ký của máy bơm này")
+
+    if page is not None:
+        offset = (page - 1) * limit
+
+    rows, total = await list_nhat_ky_for_pump(db, ngay, ma_may_bom, limit, offset)
+    items = [
+        NhatKyOut(ma_nhat_ky=r.ma_nhat_ky, ma_may_bom=r.ma_may_bom, thoi_gian_bat=r.thoi_gian_bat, thoi_gian_tat=r.thoi_gian_tat, ghi_chu=r.ghi_chu, thoi_gian_tao=r.thoi_gian_tao)
+        for r in rows
+    ]
+
+    page = (offset // limit) + 1 if limit > 0 else 1
+    total_pages = math.ceil(total / limit) if limit > 0 else 1
+    return {"data": items, "limit": limit, "offset": offset, "page": page, "total_pages": total_pages, "total": total}
+
+
 @router.get("/ngay/{ngay}", status_code=200)
 async def list_nhat_ky_endpoint(
     ngay: date,
@@ -177,7 +211,7 @@ async def list_nhat_ky_endpoint(
     pump = await get_may_bom_by_id(db, ma_may_bom)
     if not pump:
         raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm")
-    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung) and not current_user.quan_tri_vien:
         raise HTTPException(status_code=403, detail="Không được phép truy cập nhật ký của máy bơm này")
 
     if page is not None:
@@ -200,7 +234,7 @@ async def get_nhat_ky_endpoint(
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
-    """Lấy thông tin nhật ký theo mã nhật ký (chỉ chủ sở hữu)."""
+    """Lấy thông tin nhật ký theo mã nhật ký (chỉ chủ sở hữu hoặc admin)."""
     
     r = await get_nhat_ky_by_id(db, ma_nhat_ky)
     if not r:
@@ -208,7 +242,7 @@ async def get_nhat_ky_endpoint(
     pump = await get_may_bom_by_id(db, r.ma_may_bom)
     if not pump:
         raise HTTPException(status_code=404, detail="Không tìm thấy máy bơm liên quan")
-    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung):
+    if str(pump.ma_nguoi_dung) != str(current_user.ma_nguoi_dung) and not current_user.quan_tri_vien:
         raise HTTPException(status_code=403, detail="Không được phép truy cập nhật ký của người khác")
 
     return NhatKyOut(ma_nhat_ky=r.ma_nhat_ky, ma_may_bom=r.ma_may_bom, thoi_gian_bat=r.thoi_gian_bat, thoi_gian_tat=r.thoi_gian_tat, ghi_chu=r.ghi_chu, thoi_gian_tao=r.thoi_gian_tao)

@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Optional
 from datetime import datetime
-from src.schemas.sensor import SensorCreate
+from src.schemas.sensor import SensorCreate, SensorUpdate
 from src.models.cam_bien import CamBien
 from src.models.may_bom import MayBom
 from src.models.loai_cam_bien import LoaiCamBien
@@ -89,17 +89,15 @@ async def get_cam_bien_by_id(db: AsyncSession, ma_cam_bien: int):
     return res.scalars().first()
 
 
-async def update_cam_bien(db: AsyncSession, ma_cam_bien: int, payload: SensorCreate):
+async def update_cam_bien(db: AsyncSession, ma_cam_bien: int, payload: SensorUpdate):
     obj = await get_cam_bien_by_id(db, ma_cam_bien)
     if not obj:
         return None
-    obj.ten_cam_bien = payload.ten_cam_bien
-    obj.mo_ta = payload.mo_ta
-    obj.ma_may_bom = payload.ma_may_bom
-    obj.ngay_lap_dat = payload.ngay_lap_dat
-    if hasattr(payload, "trang_thai"):
-        obj.trang_thai = payload.trang_thai
-    obj.loai = payload.loai
+    
+    update_data = payload.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(obj, key, value)
+
     obj.thoi_gian_cap_nhat = datetime.now()
     await db.flush()
     
@@ -109,10 +107,10 @@ async def update_cam_bien(db: AsyncSession, ma_cam_bien: int, payload: SensorCre
         obj.ma_nguoi_dung,
         loai="DEVICE",
         muc_do="INFO",
-        tieu_de=f"Cảm biến '{payload.ten_cam_bien}' đã được cập nhật",
-        noi_dung=f"Cảm biến '{payload.ten_cam_bien}' đã được cập nhật thành công.",
-        ma_thiet_bi=payload.ma_may_bom,
-        du_lieu_lien_quan={"ten_cam_bien": payload.ten_cam_bien, "loai": payload.loai},
+        tieu_de=f"Cảm biến '{obj.ten_cam_bien}' đã được cập nhật",
+        noi_dung=f"Cảm biến '{obj.ten_cam_bien}' đã được cập nhật thành công.",
+        ma_thiet_bi=obj.ma_may_bom,
+        du_lieu_lien_quan={"ten_cam_bien": obj.ten_cam_bien, "loai": obj.loai},
     )
     
     return obj

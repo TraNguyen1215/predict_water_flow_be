@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import List
 from src.api import deps
-from src.schemas.sensor import SensorCreate, SensorOut
+from src.schemas.sensor import SensorCreate, SensorOut, SensorUpdate
 from src.crud.cam_bien import *
 from src.models.cam_bien import CamBien
 
@@ -37,12 +37,19 @@ async def create_cam_bien_endpoint(
     current_user=Depends(deps.get_current_user),
 ):
     """Tạo cảm biến mới"""
+    # Xác định người dùng mục tiêu (nếu là admin có thể tạo cho người khác)
+    if current_user.quan_tri_vien:
+        target_user_id = payload.ma_nguoi_dung
+    else:
+        target_user_id = current_user.ma_nguoi_dung
+
     # Kiểm tra xem người dùng đã có 4 cảm biến chưa
-    sensor_count = await count_cam_bien_for_user(db, current_user.ma_nguoi_dung)
-    if sensor_count >= 4:
-        raise HTTPException(status_code=400, detail="Mỗi tài khoản chỉ được có tối đa 4 cảm biến. Xoá cảm biến cũ trước khi tạo cảm biến mới")
+    if target_user_id:
+        sensor_count = await count_cam_bien_for_user(db, target_user_id)
+        if sensor_count >= 4:
+            raise HTTPException(status_code=400, detail="Mỗi tài khoản chỉ được có tối đa 4 cảm biến. Xoá cảm biến cũ trước khi tạo cảm biến mới")
     
-    obj = await create_cam_bien(db, current_user.ma_nguoi_dung, payload)
+    obj = await create_cam_bien(db, target_user_id, payload)
     await db.commit()
     return SensorOut(
         ma_cam_bien=_extract(obj, "ma_cam_bien"),
@@ -122,7 +129,7 @@ async def get_cam_bien_endpoint(
 @router.put("/{ma_cam_bien}", status_code=200)
 async def update_cam_bien_endpoint(
     ma_cam_bien: int,
-    payload: SensorCreate,
+    payload: SensorUpdate,
     db: AsyncSession = Depends(deps.get_db_session),
     current_user=Depends(deps.get_current_user),
 ):
